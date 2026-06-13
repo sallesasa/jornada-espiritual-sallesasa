@@ -1051,6 +1051,23 @@ function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
+
+  // Fallback: sempre que o setup aparecer com usuário Google logado, exibe o card
+  if (id === 'setup' && currentGoogleUser) {
+    const badge  = document.getElementById('setup-user-badge');
+    const avatar = document.getElementById('setup-account-avatar');
+    const name   = document.getElementById('setup-account-name');
+    const email  = document.getElementById('setup-account-email');
+    const tag    = document.getElementById('setup-tagline');
+    if (badge)  badge.style.display = 'block';
+    if (avatar) avatar.src = currentGoogleUser.picture || '';
+    if (name)   name.textContent = currentGoogleUser.name || '';
+    if (email)  email.textContent = currentGoogleUser.email || '';
+    if (tag)    tag.textContent = 'Configure como a Sophia vai te chamar e informe sua chave de acesso.';
+    // Pré-preenche nome se ainda vazio
+    const ni = document.getElementById('nickname-input');
+    if (ni && !ni.value) ni.value = (currentGoogleUser.name || '').split(' ')[0];
+  }
 }
 function showSession()  { show('session'); }
 function showHistory()  { renderHistory(); show('history'); }
@@ -1125,7 +1142,9 @@ function handleGoogleCredential(response) {
     });
   }
 
-  // Decide próximo passo após breve delay (para o usuário ver o feedback)
+  // Garante que a tela de login esteja visível com o estado "Conectado" por pelo menos 1.8s
+  // (importante no mobile onde auto_select pode disparar antes do usuário ver qualquer tela)
+  show('login');
   setTimeout(() => {
     const savedKey = store.get('key');
     if (savedKey?.startsWith?.('sk-')) {
@@ -1144,7 +1163,7 @@ function handleGoogleCredential(response) {
       // Sem chave → vai para setup com nome pré-preenchido
       showSetupAfterLogin(payload.name.split(' ')[0]);
     }
-  }, 900);
+  }, 1800);
 }
 
 function showSetupAfterLogin(firstName) {
