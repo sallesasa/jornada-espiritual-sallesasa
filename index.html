@@ -537,6 +537,35 @@
     </div>
   </div>
 
+  <!-- INATIVIDADE -->
+  <div class="settings-section">
+    <h3>⏸️ Pausa automática por inatividade</h3>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        Tempo de espera
+        <small>Se Sophia fizer uma pergunta e você não responder nada neste tempo, ela se despede e aguarda você retomar. Use 0 para desativar.</small>
+      </div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:0.5rem">
+        <input type="range" id="cfg-inactivity" min="0" max="300" step="10" value="120"
+          oninput="updateInactivityLabel(this.value)" />
+        <span class="setting-value-badge" id="cfg-inactivity-val">2min</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        Mensagem de despedida
+        <small>O que Sophia diz ao perceber que você precisa pausar</small>
+      </div>
+      <div class="setting-control">
+        <input type="text" id="cfg-farewell"
+          value="Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser."
+          style="width:100%;max-width:320px" />
+      </div>
+    </div>
+  </div>
+
   <div class="settings-save-row">
     <button class="btn-save" onclick="saveSettings()">Salvar configurações</button>
   </div>
@@ -568,11 +597,14 @@ let isProcessing  = false;
 let autoMode      = true;   // mic stays on automatically
 let recognition   = null;
 let finalTranscript = '';
-let silenceTimer    = null;
-let SILENCE_MS      = 3000;          // overridden by user settings
-let KEYWORD_RE      = /\bsofi[ao]\b/i; // overridden by user settings
-let VOICE_RATE      = 1.0;           // overridden by user settings
-let VOICE_PITCH     = 1.1;           // overridden by user settings
+let silenceTimer      = null;
+let inactivityTimer   = null;
+let SILENCE_MS        = 3000;
+let KEYWORD_RE        = /\bsofi[ao]\b/i;
+let VOICE_RATE        = 1.0;
+let VOICE_PITCH       = 1.1;
+let INACTIVITY_MS     = 120000;   // 0 = disabled
+let FAREWELL_MSG      = 'Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser.';
 const synth = window.speechSynthesis;
 const GIST_DESC = 'jornada-espiritual-sallesasa';
 const GIST_FILE = 'sophia-data.json';
@@ -907,6 +939,9 @@ function initRecognition() {
     }
     document.getElementById('interim').textContent = finalTranscript + interim;
 
+    // User started speaking — cancel inactivity countdown
+    clearInactivityTimer();
+
     // Reset silence timer on every new word
     clearTimeout(silenceTimer);
     if (finalTranscript.trim()) {
@@ -1060,17 +1095,21 @@ function populateVoiceSelect() {
 //  SETTINGS SCREEN
 // ══════════════════════════════════════════════════
 function loadSettingsDefaults() {
-  const cfg = store.get('sophia_cfg') || {};
-  const silence = cfg.silence ?? 3;
-  const keywords = cfg.keywords ?? 'sofia,sophia';
-  const rate  = cfg.rate  ?? 1.0;
-  const pitch = cfg.pitch ?? 1.1;
+  const cfg       = store.get('sophia_cfg') || {};
+  const silence   = cfg.silence    ?? 3;
+  const keywords  = cfg.keywords   ?? 'sofia,sophia';
+  const rate      = cfg.rate       ?? 1.0;
+  const pitch     = cfg.pitch      ?? 1.1;
+  const inactivity = cfg.inactivity ?? 120;
+  const farewell  = cfg.farewell   ?? 'Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser.';
 
   // Apply to runtime vars
-  SILENCE_MS  = Math.round(silence * 1000);
-  KEYWORD_RE  = buildKeywordRE(keywords);
-  VOICE_RATE  = rate;
-  VOICE_PITCH = pitch;
+  SILENCE_MS    = Math.round(silence * 1000);
+  KEYWORD_RE    = buildKeywordRE(keywords);
+  VOICE_RATE    = rate;
+  VOICE_PITCH   = pitch;
+  INACTIVITY_MS = Math.round(inactivity * 1000);
+  FAREWELL_MSG  = farewell;
 
   // Populate UI controls
   const s = v => document.getElementById(v);
@@ -1087,6 +1126,23 @@ function loadSettingsDefaults() {
     s('cfg-pitch').value = pitch;
     s('cfg-pitch-val').textContent = pitch.toFixed(2);
   }
+  if (s('cfg-inactivity')) {
+    s('cfg-inactivity').value = inactivity;
+    s('cfg-inactivity-val').textContent = formatInactivity(inactivity);
+  }
+  if (s('cfg-farewell')) s('cfg-farewell').value = farewell;
+}
+
+function formatInactivity(secs) {
+  if (secs === 0) return 'deslig.';
+  if (secs < 60)  return secs + 's';
+  const m = Math.floor(secs / 60), s2 = secs % 60;
+  return s2 ? `${m}min${s2}s` : `${m}min`;
+}
+
+function updateInactivityLabel(val) {
+  const el = document.getElementById('cfg-inactivity-val');
+  if (el) el.textContent = formatInactivity(parseInt(val));
 }
 
 function buildKeywordRE(csv) {
@@ -1097,22 +1153,27 @@ function buildKeywordRE(csv) {
 }
 
 function saveSettings() {
-  const silence  = parseFloat(document.getElementById('cfg-silence').value);
-  const keywords = document.getElementById('cfg-keywords').value;
-  const rate     = parseFloat(document.getElementById('cfg-rate').value);
-  const pitch    = parseFloat(document.getElementById('cfg-pitch').value);
-  const voice    = document.getElementById('cfg-voice-select').value;
+  const silence    = parseFloat(document.getElementById('cfg-silence').value);
+  const keywords   = document.getElementById('cfg-keywords').value;
+  const rate       = parseFloat(document.getElementById('cfg-rate').value);
+  const pitch      = parseFloat(document.getElementById('cfg-pitch').value);
+  const voice      = document.getElementById('cfg-voice-select').value;
+  const inactivity = parseInt(document.getElementById('cfg-inactivity').value);
+  const farewell   = document.getElementById('cfg-farewell').value.trim()
+                     || FAREWELL_MSG;
 
   // Persist
-  store.set('sophia_cfg', { silence, keywords, rate, pitch });
+  store.set('sophia_cfg', { silence, keywords, rate, pitch, inactivity, farewell });
   if (voice) store.set('sophia_voice', voice);
 
   // Apply immediately
-  SILENCE_MS  = Math.round(silence * 1000);
-  KEYWORD_RE  = buildKeywordRE(keywords);
-  VOICE_RATE  = rate;
-  VOICE_PITCH = pitch;
-  _cachedVoice = null;
+  SILENCE_MS    = Math.round(silence * 1000);
+  KEYWORD_RE    = buildKeywordRE(keywords);
+  VOICE_RATE    = rate;
+  VOICE_PITCH   = pitch;
+  INACTIVITY_MS = Math.round(inactivity * 1000);
+  FAREWELL_MSG  = farewell;
+  _cachedVoice  = null;
 
   const saved = document.getElementById('settings-saved');
   saved.classList.add('show');
@@ -1154,7 +1215,7 @@ function speak(text) {
   if (v) utt.voice = v;
 
   utt.onstart = () => {
-    // Stop mic while Sophia speaks so she doesn't hear herself
+    clearInactivityTimer(); // Sophia is speaking, no need to count inactivity
     try { if (recognition) recognition.stop(); } catch {}
     setMicState('speaking');
     setStatus('Sophia falando… toque para interromper');
@@ -1163,7 +1224,8 @@ function speak(text) {
     isProcessing = false;
     if (autoMode) {
       setStatus('Ouvindo… diga "Sofia" ou pause 3s para enviar');
-      setTimeout(startListening, 600); // small delay after TTS ends
+      setTimeout(startListening, 600);
+      startInactivityTimer(); // begin countdown waiting for user response
     } else {
       setMicState('idle');
       setStatus('Microfone pausado — toque ▶ para retomar');
@@ -1172,6 +1234,39 @@ function speak(text) {
   utt.onend   = _afterSpeak;
   utt.onerror = _afterSpeak;
   synth.speak(utt);
+}
+
+// ── Inactivity timer ──────────────────────────────
+function startInactivityTimer() {
+  clearInactivityTimer();
+  if (!INACTIVITY_MS) return; // 0 = disabled
+  inactivityTimer = setTimeout(() => {
+    // Only fire if we're still listening and not mid-conversation
+    if (!isProcessing && autoMode) {
+      autoMode = false;
+      clearTimeout(silenceTimer);
+      try { if (recognition) recognition.stop(); } catch {}
+      // Sophia verbalizes the farewell — not added to chat, just spoken
+      const utt = new SpeechSynthesisUtterance(FAREWELL_MSG);
+      utt.lang  = 'pt-BR';
+      utt.rate  = VOICE_RATE;
+      utt.pitch = VOICE_PITCH;
+      const v = getBestVoice();
+      if (v) utt.voice = v;
+      utt.onend = () => {
+        setMicState('idle');
+        setStatus('Em pausa — toque ▶ para retomar a conversa');
+      };
+      synth.speak(utt);
+      setMicState('speaking');
+      setStatus('Sophia se despedindo…');
+    }
+  }, INACTIVITY_MS);
+}
+
+function clearInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  inactivityTimer = null;
 }
 
 function stopSpeech() {
