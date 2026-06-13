@@ -32,8 +32,8 @@
     .screen { display: none; }
     .screen.active { display: flex; flex-direction: column; min-height: 100%; min-height: 100dvh; }
 
-    /* ── SETUP ── */
-    #setup {
+    /* ── SHARED SETUP/LOGIN STYLES ── */
+    .centered-screen {
       align-items: center;
       justify-content: center;
       padding: 2rem 1.25rem;
@@ -41,7 +41,7 @@
       background: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.2) 0%, transparent 65%);
     }
     .setup-icon { font-size: 3rem; margin-bottom: 1rem; }
-    #setup h1 { font-size: 2.2rem; color: var(--primary); letter-spacing: 0.04em; margin-bottom: 0.3rem; }
+    .screen-title { font-size: 2.2rem; color: var(--primary); letter-spacing: 0.04em; margin-bottom: 0.3rem; }
     .tagline { color: var(--muted); font-size: 0.95rem; max-width: 360px; margin: 0 auto 1.8rem; }
     .setup-card {
       background: var(--surface);
@@ -98,7 +98,85 @@
       transition: opacity 0.2s;
     }
     .btn-primary:hover { opacity: 0.88; }
-    #setup-error { color: var(--red); font-size: 0.82rem; text-align: center; margin-top: 0.9rem; min-height: 1rem; }
+    .btn-secondary {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      font-family: Georgia, serif;
+      font-size: 0.88rem;
+      padding: 0.7rem;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      margin-top: 0.5rem;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--sophia); }
+    .setup-error { color: var(--red); font-size: 0.82rem; text-align: center; margin-top: 0.9rem; min-height: 1rem; }
+
+    /* ── LOGIN SCREEN ── */
+    .login-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+      max-width: 420px;
+      width: 100%;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: background 0.4s;
+    }
+    .status-dot.offline  { background: var(--muted); }
+    .status-dot.online   { background: var(--green); }
+    .status-dot.loading  { background: var(--primary); animation: blink 0.8s infinite; }
+    #login-status-text   { font-size: 0.82rem; color: var(--muted); }
+    #login-status-text.connected { color: var(--green); }
+
+    .google-divider {
+      display: flex; align-items: center; gap: 0.75rem;
+      color: var(--muted); font-size: 0.78rem; margin: 1.2rem 0;
+    }
+    .google-divider::before, .google-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    #login-g-btn { display: flex; justify-content: center; margin-bottom: 0.5rem; }
+
+    /* Google user chip - small (header) */
+    .user-chip {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 0.3rem 0.7rem 0.3rem 0.3rem;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    .user-chip:hover { border-color: var(--sophia); }
+    .user-chip img { width: 26px; height: 26px; border-radius: 50%; }
+    .user-chip span { font-size: 0.78rem; color: var(--muted); }
+    #header-user { display: none; }
+
+    /* Login connected card */
+    .login-user-card {
+      background: var(--surface2);
+      border: 1px solid rgba(46,204,113,0.3);
+      border-radius: 12px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    .login-user-card img { width: 48px; height: 48px; border-radius: 50%; }
+    .login-user-card .user-info { flex: 1; }
+    .login-user-card .user-name { font-size: 1rem; color: var(--text); }
+    .login-user-card .user-email { font-size: 0.75rem; color: var(--muted); }
 
     /* ── SESSION ── */
     #session { max-width: 700px; margin: 0 auto; width: 100%; }
@@ -295,7 +373,8 @@
       accent-color: var(--sophia);
       cursor: pointer;
     }
-    .setting-control input[type="text"] {
+    .setting-control input[type="text"],
+    .setting-control input[type="password"] {
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -307,7 +386,8 @@
       font-family: monospace;
       transition: border-color 0.2s;
     }
-    .setting-control input[type="text"]:focus { border-color: var(--sophia); }
+    .setting-control input[type="text"]:focus,
+    .setting-control input[type="password"]:focus { border-color: var(--sophia); }
     .setting-control select {
       background: var(--bg);
       border: 1px solid var(--border);
@@ -356,6 +436,54 @@
     }
     #settings-saved.show { opacity: 1; }
 
+    /* Account section in settings */
+    .account-user-card {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      background: var(--surface2);
+      border: 1px solid rgba(46,204,113,0.25);
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .account-user-card img { width: 40px; height: 40px; border-radius: 50%; }
+    .account-user-card .au-info { flex: 1; }
+    .account-user-card .au-name { font-size: 0.9rem; color: var(--text); }
+    .account-user-card .au-email { font-size: 0.72rem; color: var(--muted); }
+    .account-user-card .au-badge {
+      font-size: 0.65rem;
+      background: rgba(46,204,113,0.15);
+      color: var(--green);
+      border: 1px solid rgba(46,204,113,0.3);
+      border-radius: 10px;
+      padding: 0.2rem 0.5rem;
+    }
+    .btn-danger-sm {
+      background: transparent;
+      border: 1px solid rgba(231,76,60,0.4);
+      border-radius: 8px;
+      color: var(--red);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0.3rem 0.7rem;
+      font-family: Georgia, serif;
+      transition: background 0.2s;
+    }
+    .btn-danger-sm:hover { background: rgba(231,76,60,0.1); }
+    .anon-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.4rem 0.7rem;
+      margin-bottom: 0.8rem;
+    }
+
     /* ── HISTORY ── */
     #history { max-width: 700px; margin: 0 auto; width: 100%; padding: 1.25rem; overflow-y: auto; }
     .history-top { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.3rem; }
@@ -388,74 +516,103 @@
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--sophia-d); border-radius: 2px; }
-
-    /* ── GOOGLE AUTH ── */
-    .google-divider {
-      display: flex; align-items: center; gap: 0.75rem;
-      color: var(--muted); font-size: 0.78rem; margin: 1.2rem 0;
-    }
-    .google-divider::before, .google-divider::after {
-      content: ''; flex: 1; height: 1px; background: var(--border);
-    }
-    #g_id_onload_area { display: flex; justify-content: center; margin-bottom: 0.5rem; }
-    .user-chip {
-      display: flex; align-items: center; gap: 0.5rem;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 20px; padding: 0.3rem 0.7rem 0.3rem 0.3rem;
-      cursor: pointer; transition: border-color 0.2s;
-    }
-    .user-chip:hover { border-color: var(--sophia); }
-    .user-chip img { width: 26px; height: 26px; border-radius: 50%; }
-    .user-chip span { font-size: 0.78rem; color: var(--muted); }
-    #header-user { display: none; }
   </style>
 </head>
 <body>
 
 <div id="sync-dot" title="Status de sincronização"></div>
 
-<!-- ══ SETUP ══ -->
-<div id="setup" class="screen active">
+<!-- ══ LOGIN ══ (mostrado quando Google Client ID está configurado) -->
+<div id="login" class="screen centered-screen" style="display:none">
   <div class="setup-icon">🕊️</div>
-  <h1 id="setup-title">Sophia</h1>
+  <h1 class="screen-title" id="login-title">Sophia</h1>
   <p class="tagline">Sua companheira de jornada espiritual — disponível em qualquer dispositivo.</p>
 
+  <!-- Status de conexão -->
+  <div class="login-status">
+    <div class="status-dot offline" id="login-status-dot"></div>
+    <span id="login-status-text">Não conectado</span>
+  </div>
+
   <div class="setup-card">
+    <!-- Estado: não conectado -->
+    <div id="login-not-connected">
+      <p style="color:var(--muted);font-size:0.88rem;margin-bottom:1.2rem;line-height:1.6">
+        Entre com sua conta Google para salvar sua jornada e acessá-la de qualquer dispositivo.
+      </p>
+      <div id="login-g-btn" style="display:flex;justify-content:center;margin-bottom:0.5rem"></div>
+      <p style="color:var(--muted);font-size:0.72rem;text-align:center;margin-top:0.5rem">
+        Histórico separado por conta. Seguro e privado.
+      </p>
+      <div class="google-divider">ou</div>
+      <button class="btn-secondary" onclick="continueAnonymous()">Continuar sem conta →</button>
+    </div>
+
+    <!-- Estado: conectado (preenchido via JS) -->
+    <div id="login-connected" style="display:none">
+      <div class="login-user-card">
+        <img id="login-avatar" src="" alt="" />
+        <div class="user-info">
+          <div class="user-name" id="login-user-name"></div>
+          <div class="user-email" id="login-user-email"></div>
+        </div>
+      </div>
+      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;text-align:center">
+        Carregando sua jornada…
+      </div>
+      <button class="btn-secondary" onclick="loginSwitchAccount()" style="margin-top:0">
+        Trocar conta
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETUP ══ (primeira configuração / usuário anônimo) -->
+<div id="setup" class="screen centered-screen">
+  <div class="setup-icon">🕊️</div>
+  <h1 class="screen-title" id="setup-title">Sophia</h1>
+  <p class="tagline">Configure suas credenciais para começar a jornada.</p>
+
+  <!-- Chip do usuário logado (se vier do login Google) -->
+  <div id="setup-user-badge" style="display:none;margin-bottom:1rem">
+    <div class="login-status" style="max-width:420px">
+      <div class="status-dot online"></div>
+      <span style="font-size:0.82rem;color:var(--green)" id="setup-user-badge-text"></span>
+    </div>
+  </div>
+
+  <div class="setup-card">
+
     <div class="field-group">
-      <label>Claude API Key</label>
-      <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off" />
-      <small>Salva apenas neste dispositivo. Nunca enviada a servidores externos.</small>
+      <label>Como você gostaria de ser chamado?</label>
+      <input type="text" id="nickname-input" placeholder="Ex: Alexandre, Alex, Amor…" autocomplete="off"
+        style="font-family:Georgia,serif" />
+      <small>Sophia vai usar este nome ao conversar com você.</small>
     </div>
 
     <div class="field-group">
-      <label>GitHub Personal Access Token</label>
-      <input type="password" id="gh-input" placeholder="github_pat_…" autocomplete="off" />
-      <small>
-        Necessário para sincronizar o histórico entre dispositivos (celular ↔ computador).<br>
-        <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App" target="_blank">
-          → Criar token com escopo "gist" aqui
-        </a>
+      <label>Claude API Key</label>
+      <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off" />
+      <small>Salva apenas neste dispositivo. Nunca enviada a servidores externos.
+        <a href="https://console.anthropic.com/settings/keys" target="_blank">→ Obter chave aqui</a>
       </small>
     </div>
 
     <div class="field-group">
-      <label>Seu nome (opcional)</label>
-      <input type="text" id="name-input" placeholder="Alexandre" autocomplete="off" />
+      <label>GitHub Token <span style="color:var(--muted);font-weight:normal;font-size:0.7rem">(opcional)</span></label>
+      <input type="password" id="gh-input" placeholder="github_pat_…" autocomplete="off" />
+      <small>
+        Sincroniza histórico entre dispositivos (celular ↔ computador).<br>
+        <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App" target="_blank">
+          → Criar token com escopo "gist"
+        </a>
+      </small>
     </div>
 
     <button class="btn-primary" onclick="startJourney()">Começar minha jornada ✨</button>
   </div>
 
-  <!-- Google Sign-In (aparece somente se Google Client ID estiver configurado) -->
-  <div id="google-signin-area" style="display:none;width:100%;max-width:420px;margin-top:1rem">
-    <div class="google-divider">ou entre com</div>
-    <div id="g_id_onload_area"></div>
-    <p style="color:var(--muted);font-size:0.72rem;text-align:center;margin-top:0.5rem">
-      Login Google salva chaves por conta — histórico separado por pessoa.
-    </p>
-  </div>
-
-  <p id="setup-error"></p>
+  <p class="setup-error" id="setup-error"></p>
 </div>
 
 <!-- ══ SESSION ══ -->
@@ -498,14 +655,58 @@
     <h2>⚙️ Configurações</h2>
   </div>
 
-  <!-- IDENTIDADE -->
+  <!-- MINHA CONTA -->
+  <div class="settings-section">
+    <h3>👤 Minha conta</h3>
+
+    <!-- Preenchido via JS: mostra chip Google ou badge anônimo -->
+    <div id="settings-account-area"></div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        Como você gostaria de ser chamado?
+        <small>Sophia usa este nome ao se dirigir a você</small>
+      </div>
+      <div class="setting-control">
+        <input type="text" id="cfg-nickname" placeholder="Seu nome ou apelido"
+          style="font-family:Georgia,serif" />
+      </div>
+    </div>
+  </div>
+
+  <!-- APIs -->
+  <div class="settings-section">
+    <h3>🔑 Credenciais de acesso</h3>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        Claude API Key
+        <small>Chave de acesso à IA. Salva localmente por conta.</small>
+      </div>
+      <div class="setting-control">
+        <input type="password" id="cfg-api-key" placeholder="sk-ant-…" />
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        GitHub Token
+        <small>Para sincronizar histórico entre dispositivos (opcional).</small>
+      </div>
+      <div class="setting-control">
+        <input type="password" id="cfg-gh-token" placeholder="github_pat_…" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSISTENTE -->
   <div class="settings-section">
     <h3>🕊️ Identidade do assistente</h3>
 
     <div class="setting-row">
       <div class="setting-label">
         Nome do assistente
-        <small>Substitui "Sophia" em toda a interface e nas conversas</small>
+        <small>Substitui "Sophia" em toda a interface e conversas</small>
       </div>
       <div class="setting-control">
         <input type="text" id="cfg-assistant-name" value="Sophia" placeholder="Sophia" />
@@ -514,11 +715,10 @@
 
     <div class="setting-row">
       <div class="setting-label">
-        Google Client ID <span style="color:var(--green);font-size:0.7rem">(opcional)</span>
-        <small>Habilita login com Google para múltiplos usuários com histórico separado.
-          <a href="https://console.cloud.google.com/apis/credentials" target="_blank"
-            style="color:var(--sophia)">→ Criar em Google Cloud Console</a>
-          (Credentials → Create → OAuth 2.0 → Web app → adicionar sua URL do Vercel)
+        Google Client ID <span style="color:var(--green);font-size:0.7rem">(admin)</span>
+        <small>Habilita login com Google.
+          <a href="https://console.cloud.google.com/auth/clients" target="_blank"
+            style="color:var(--sophia)">→ Google Cloud Console</a>
         </small>
       </div>
       <div class="setting-control">
@@ -609,12 +809,12 @@
     <div class="setting-row">
       <div class="setting-label">
         Tempo de espera
-        <small>Se Sophia fizer uma pergunta e você não responder nada neste tempo, ela se despede e aguarda você retomar. Use 0 para desativar.</small>
+        <small>Se você não responder neste tempo, Sophia se despede e pausa. Use 0 para desativar.</small>
       </div>
       <div class="setting-control" style="display:flex;align-items:center;gap:0.5rem">
         <input type="range" id="cfg-inactivity" min="5" max="60" step="1" value="30"
           oninput="updateInactivityLabel(this.value)" />
-        <span class="setting-value-badge" id="cfg-inactivity-val">2min</span>
+        <span class="setting-value-badge" id="cfg-inactivity-val">30s</span>
       </div>
     </div>
 
@@ -655,11 +855,11 @@
 let apiKey      = '';
 let ghToken     = '';
 let gistId      = '';
-let userName    = 'Alexandre';
+let userName    = 'Viajante';   // como Sophia chama o usuário
 let messages    = [];
 let isListening   = false;
 let isProcessing  = false;
-let autoMode      = true;   // mic stays on automatically
+let autoMode      = true;
 let recognition   = null;
 let finalTranscript = '';
 let silenceTimer      = null;
@@ -668,7 +868,7 @@ let SILENCE_MS        = 3000;
 let KEYWORD_RE        = /\bsofi[ao]\b/i;
 let VOICE_RATE        = 1.0;
 let VOICE_PITCH       = 1.1;
-let INACTIVITY_MS     = 120000;   // 0 = disabled
+let INACTIVITY_MS     = 30000;
 let FAREWELL_MSG      = 'Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser.';
 const synth = window.speechSynthesis;
 const GIST_DESC = 'jornada-espiritual-sallesasa';
@@ -680,12 +880,12 @@ const GIST_FILE = 'sophia-data.json';
 let currentGoogleUser = null; // { sub, name, email, picture }
 let GOOGLE_CLIENT_ID  = localStorage.getItem('sophia_google_client_id') || '';
 let ASSISTANT_NAME    = 'Sophia';
+let _anonymousMode    = false; // usuário escolheu continuar sem conta
 
 // ══════════════════════════════════════════════════
 //  STORAGE (localStorage, namespaced per Google user)
 // ══════════════════════════════════════════════════
 const store = {
-  // prefix: anonymous = 'sophia_', Google user = 'sophia_{sub}_'
   _pfx: () => currentGoogleUser ? `sophia_${currentGoogleUser.sub}_` : 'sophia_',
   get: k => { try { return JSON.parse(localStorage.getItem(store._pfx() + k)); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(store._pfx() + k, JSON.stringify(v)); } catch {} },
@@ -732,18 +932,13 @@ async function ghFetch(path, opts = {}) {
 }
 
 async function findOrCreateGist() {
-  // Try cached gist ID first
   const cached = store.get('gist_id');
   if (cached) { gistId = cached; return; }
-
-  // Search in user's gists (up to 100)
   const gists = await ghFetch('/gists?per_page=100');
   const found = gists.find(g => g.description === GIST_DESC);
-
   if (found) {
     gistId = found.id;
   } else {
-    // Create new private gist
     const created = await ghFetch('/gists', {
       method: 'POST',
       body: JSON.stringify({
@@ -771,17 +966,13 @@ async function loadFromGist() {
     const localInsights = getInsights();
     const cloudInsights = typeof parsed.insights === 'string' ? parsed.insights : '';
 
-    // Merge: keep whichever source has more sessions.
-    // If equal (e.g. both empty), prefer cloud (another device may have cleared local).
     if (cloudSessions.length >= localSessions.length) {
       store.set('sessions', cloudSessions);
       store.set('insights', cloudInsights);
     } else {
-      // Local has more data — push local up to cloud so it's never lost
-      console.log('loadFromGist: local has more sessions, pushing to cloud');
-      store.set('sessions', localSessions); // keep local
+      store.set('sessions', localSessions);
       store.set('insights', localInsights);
-      setTimeout(saveToGist, 500); // sync local → cloud
+      setTimeout(saveToGist, 500);
     }
     setSyncState('synced');
   } catch (e) {
@@ -797,11 +988,9 @@ async function saveToGist() {
     await ghFetch(`/gists/${gistId}`, {
       method: 'PATCH',
       body: JSON.stringify({
-        files: {
-          [GIST_FILE]: {
-            content: JSON.stringify({ sessions: getSessions(), insights: getInsights() }, null, 2),
-          },
-        },
+        files: { [GIST_FILE]: {
+          content: JSON.stringify({ sessions: getSessions(), insights: getInsights() }, null, 2),
+        }},
       }),
     });
     setSyncState('synced');
@@ -822,20 +1011,144 @@ async function manualSync() {
 // ══════════════════════════════════════════════════
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
 }
 function showSession()  { show('session'); }
 function showHistory()  { renderHistory(); show('history'); }
-// showSettings() defined in SETTINGS SCREEN section below
 
 // ══════════════════════════════════════════════════
-//  SETUP
+//  LOGIN SCREEN
+// ══════════════════════════════════════════════════
+function initGoogleAuth() {
+  if (!GOOGLE_CLIENT_ID || typeof google === 'undefined' || !google?.accounts) return;
+
+  google.accounts.id.initialize({
+    client_id:   GOOGLE_CLIENT_ID,
+    callback:    handleGoogleCredential,
+    auto_select: true,  // tenta entrar automaticamente se sessão Google ativa
+  });
+
+  const btnArea = document.getElementById('login-g-btn');
+  if (btnArea) {
+    btnArea.innerHTML = '';
+    google.accounts.id.renderButton(btnArea, {
+      theme: 'filled_black',
+      size:  'large',
+      text:  'signin_with',
+      shape: 'pill',
+      locale: 'pt-BR',
+    });
+  }
+}
+
+function updateLoginStatus(state, text) {
+  const dot  = document.getElementById('login-status-dot');
+  const span = document.getElementById('login-status-text');
+  if (!dot || !span) return;
+  dot.className  = `status-dot ${state}`;
+  span.textContent = text;
+  span.className = state === 'online' ? 'connected' : '';
+}
+
+function handleGoogleCredential(response) {
+  const b64 = response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  const payload = JSON.parse(atob(b64));
+  currentGoogleUser = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
+
+  // Atualiza status na login screen
+  updateLoginStatus('online', `Conectado como ${payload.name.split(' ')[0]}`);
+
+  // Mostra card de usuário conectado
+  const notConn = document.getElementById('login-not-connected');
+  const conn    = document.getElementById('login-connected');
+  if (notConn) notConn.style.display = 'none';
+  if (conn) {
+    conn.style.display = 'block';
+    document.getElementById('login-avatar').src   = payload.picture;
+    document.getElementById('login-user-name').textContent  = payload.name;
+    document.getElementById('login-user-email').textContent = payload.email;
+  }
+
+  // Mostra avatar no header da sessão
+  const chip   = document.getElementById('header-user');
+  const avatar = document.getElementById('header-avatar');
+  const uname  = document.getElementById('header-uname');
+  if (chip)   chip.style.display = 'flex';
+  if (avatar) { avatar.src = payload.picture; avatar.alt = payload.name; }
+  if (uname)  uname.textContent = payload.name.split(' ')[0];
+
+  // Migra dados anônimos → namespace Google (se não houver dados nesse usuário)
+  const hasUserData = store.get('key');
+  if (!hasUserData) {
+    ['key','gh','name','gist_id','sessions','insights'].forEach(k => {
+      const val = localStorage.getItem('sophia_' + k);
+      if (val !== null) { try { store.set(k, JSON.parse(val)); } catch {} }
+    });
+  }
+
+  // Decide próximo passo após breve delay (para o usuário ver o feedback)
+  setTimeout(() => {
+    const savedKey = store.get('key');
+    if (savedKey?.startsWith?.('sk-')) {
+      // Chave salva → vai direto para sessão
+      apiKey   = savedKey;
+      ghToken  = store.get('gh') || '';
+      userName = store.get('name') || payload.name.split(' ')[0];
+      gistId   = store.get('gist_id') || '';
+      const doInit = async () => {
+        if (ghToken && !gistId) await findOrCreateGist();
+        if (ghToken) await loadFromGist();
+        initSession();
+      };
+      doInit().catch(console.warn);
+    } else {
+      // Sem chave → vai para setup com nome pré-preenchido
+      showSetupAfterLogin(payload.name.split(' ')[0]);
+    }
+  }, 900);
+}
+
+function showSetupAfterLogin(firstName) {
+  // Mostra badge de usuário logado no setup
+  const badge = document.getElementById('setup-user-badge');
+  const text  = document.getElementById('setup-user-badge-text');
+  if (badge && text) {
+    text.textContent = `Logado como ${currentGoogleUser?.name} (${currentGoogleUser?.email})`;
+    badge.style.display = 'block';
+  }
+  // Pré-preenche nome
+  const nicknameInput = document.getElementById('nickname-input');
+  if (nicknameInput && !nicknameInput.value) nicknameInput.value = firstName || '';
+  show('setup');
+}
+
+function continueAnonymous() {
+  _anonymousMode = true;
+  currentGoogleUser = null;
+  show('setup');
+}
+
+function loginSwitchAccount() {
+  if (typeof google !== 'undefined' && google?.accounts) {
+    google.accounts.id.disableAutoSelect();
+    currentGoogleUser = null;
+  }
+  const notConn = document.getElementById('login-not-connected');
+  const conn    = document.getElementById('login-connected');
+  if (notConn) notConn.style.display = 'block';
+  if (conn)    conn.style.display    = 'none';
+  updateLoginStatus('offline', 'Não conectado');
+}
+
+// ══════════════════════════════════════════════════
+//  SETUP (primeira configuração / anônimo)
 // ══════════════════════════════════════════════════
 async function startJourney() {
-  const key  = document.getElementById('key-input').value.trim();
-  const gh   = document.getElementById('gh-input').value.trim();
-  const name = document.getElementById('name-input').value.trim();
-  const err  = document.getElementById('setup-error');
+  const nickname = document.getElementById('nickname-input').value.trim();
+  const key      = document.getElementById('key-input').value.trim();
+  const gh       = document.getElementById('gh-input').value.trim();
+  const err      = document.getElementById('setup-error');
 
   if (!key.startsWith('sk-')) {
     err.textContent = 'Claude API Key inválida — deve começar com sk-';
@@ -845,13 +1158,12 @@ async function startJourney() {
 
   apiKey   = key;
   ghToken  = gh;
-  userName = name || 'Alexandre';
+  userName = nickname || (currentGoogleUser ? currentGoogleUser.name.split(' ')[0] : 'Viajante');
 
-  store.set('key',   key);
-  store.set('gh',    gh);
-  store.set('name',  userName);
+  store.set('key',  key);
+  store.set('gh',   gh);
+  store.set('name', userName);
 
-  // If GitHub token provided, set up gist sync
   if (ghToken) {
     setSyncState('syncing');
     try {
@@ -870,7 +1182,19 @@ function clearAll() {
   if (!confirm('Sair e remover dados deste dispositivo?')) return;
   ['key','gh','name','gist_id'].forEach(k => store.del(k));
   apiKey = ghToken = gistId = userName = '';
-  show('setup');
+  currentGoogleUser = null;
+  document.getElementById('header-user').style.display = 'none';
+  if (GOOGLE_CLIENT_ID) {
+    if (typeof google !== 'undefined' && google?.accounts) google.accounts.id.disableAutoSelect();
+    show('login');
+    const notConn = document.getElementById('login-not-connected');
+    const conn    = document.getElementById('login-connected');
+    if (notConn) notConn.style.display = 'block';
+    if (conn)    conn.style.display    = 'none';
+    updateLoginStatus('offline', 'Não conectado');
+  } else {
+    show('setup');
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -885,20 +1209,19 @@ async function initSession() {
   document.getElementById('session-date').textContent =
     now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  setStatus('Sophia está se preparando…');
+  setStatus(`${ASSISTANT_NAME} está se preparando…`);
   setMicState('loading');
 
   const sessionN = getSessions().length + 1;
   const insights = getInsights();
 
   const openInstruction = sessionN === 1
-    ? `Cumprimente ${userName} acolhedoramente. Apresente-se como Sophia. Faça uma única pergunta inicial profunda sobre o que o traz a essa busca — o que ele sente que falta, o que o inquieta. Seja direta, não genérica.`
+    ? `Cumprimente ${userName} acolhedoramente. Apresente-se como ${ASSISTANT_NAME}. Faça uma única pergunta inicial profunda sobre o que o traz a essa busca — o que ele sente que falta, o que o inquieta. Seja direta, não genérica.`
     : `Abra a sessão ${sessionN} de ${userName} com uma nova provocação que aprofunde o que surgiu nas sessões anteriores. Não resuma o passado — abra uma nova porta. Uma pergunta direta e instigante.`;
 
   messages = [{ role: 'user', content: `[instrução de abertura: ${openInstruction}]` }];
 
   showTyping();
-  setStatus(`${ASSISTANT_NAME} está se preparando…`);
   try {
     const opening = await callClaude();
     removeTyping();
@@ -919,8 +1242,8 @@ async function initSession() {
 //  CLAUDE API
 // ══════════════════════════════════════════════════
 function buildSystem() {
-  const sessionN   = getSessions().length + 1;
-  const insights   = getInsights();
+  const sessionN = getSessions().length + 1;
+  const insights = getInsights();
   return `Você é ${ASSISTANT_NAME}, uma companheira espiritual sábia, direta e compassiva. Acompanha ${userName} em uma jornada pessoal de descoberta espiritual — não para convertê-lo a nenhuma religião, mas para ajudá-lo a encontrar paz autêntica com um conceito de divindade ou sentido que ressoe com ele.
 
 SEU CONHECIMENTO:
@@ -935,6 +1258,7 @@ ABORDAGEM:
 - Faz perguntas provocativas que abrem reflexões genuínas.
 - É honesta sobre tensões entre ciência e religião.
 - Constrói sobre o que ${userName} compartilha.
+- Chama o usuário pelo nome ${userName}.
 - Linguagem acessível mas profunda. Poética quando natural.
 - Respostas em português, 2-4 parágrafos no máximo, conversacionais.
 - Quase sempre termina com uma pergunta ou provocação.
@@ -980,7 +1304,7 @@ function addMsgUI(role, text) {
   const el = document.createElement('div');
   el.className = `msg ${isSophia ? 'sophia' : 'user'}`;
   el.innerHTML = `
-    <div class="msg-label">${isSophia ? 'Sophia' : userName}</div>
+    <div class="msg-label">${isSophia ? ASSISTANT_NAME : userName}</div>
     <div class="bubble">${escHtml(text).replace(/\n/g,'<br>')}</div>`;
   const c = document.getElementById('messages');
   c.appendChild(el);
@@ -991,7 +1315,7 @@ function showTyping() {
   const el = document.createElement('div');
   el.className = 'msg sophia';
   el.id = 'typing';
-  el.innerHTML = `<div class="msg-label">Sophia</div><div class="bubble"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  el.innerHTML = `<div class="msg-label">${ASSISTANT_NAME}</div><div class="bubble"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
   const c = document.getElementById('messages');
   c.appendChild(el);
   c.scrollTop = c.scrollHeight;
@@ -1011,14 +1335,14 @@ function initRecognition() {
 
   const r = new SR();
   r.lang = 'pt-BR';
-  r.continuous = true;      // keeps listening without cutting off
+  r.continuous = true;
   r.interimResults = true;
 
   r.onstart = () => {
     isListening = true;
     finalTranscript = '';
     setMicState('listening');
-    setStatus('Ouvindo… diga "Sofia" ou pause 3s para enviar');
+    setStatus('Ouvindo… diga "Sofia" ou pause para enviar');
   };
 
   r.onresult = e => {
@@ -1028,17 +1352,11 @@ function initRecognition() {
       else interim += e.results[i][0].transcript;
     }
     document.getElementById('interim').textContent = finalTranscript + interim;
-
-    // User started speaking — cancel inactivity countdown
     clearInactivityTimer();
-
-    // Reset silence timer on every new word
     clearTimeout(silenceTimer);
     if (finalTranscript.trim()) {
       silenceTimer = setTimeout(submitSpeech, SILENCE_MS);
     }
-
-    // Keyword trigger: "Sofia" or "Sophia" anywhere in accumulated text
     if (KEYWORD_RE.test(finalTranscript + interim) && finalTranscript.trim().length > 3) {
       clearTimeout(silenceTimer);
       submitSpeech();
@@ -1049,7 +1367,6 @@ function initRecognition() {
     isListening = false;
     clearTimeout(silenceTimer);
     if (e.error === 'no-speech') {
-      // Browser timed out on silence — restart if still in auto mode
       if (autoMode && !isProcessing) setTimeout(startListening, 300);
     } else {
       setMicState('idle');
@@ -1061,7 +1378,6 @@ function initRecognition() {
     isListening = false;
     clearTimeout(silenceTimer);
     document.getElementById('interim').textContent = '';
-    // Auto-restart unless we're processing or user paused
     if (autoMode && !isProcessing) setTimeout(startListening, 400);
     else if (!autoMode) { setMicState('idle'); setStatus('Microfone pausado — toque ▶ para retomar'); }
   };
@@ -1083,14 +1399,13 @@ function submitSpeech() {
   finalTranscript = '';
   clearTimeout(silenceTimer);
   if (!text || isProcessing) return;
-  isProcessing = true;            // set BEFORE stop so onend sees it
+  isProcessing = true;
   try { recognition.stop(); } catch {}
   _doHandleInput(text);
 }
 
 function toggleMic() {
   if (synth.speaking) { stopSpeech(); return; }
-
   autoMode = !autoMode;
   if (autoMode) {
     startListening();
@@ -1102,17 +1417,11 @@ function toggleMic() {
   }
 }
 
-async function handleUserInput(text) {
-  if (!text || isProcessing) return;
-  isProcessing = true;
-  _doHandleInput(text);
-}
-
 async function _doHandleInput(text) {
   messages.push({ role: 'user', content: text });
   addMsgUI('user', text);
   setMicState('loading');
-  setStatus('Sophia está refletindo…');
+  setStatus(`${ASSISTANT_NAME} está refletindo…`);
   showTyping();
 
   try {
@@ -1132,45 +1441,34 @@ async function _doHandleInput(text) {
 // ══════════════════════════════════════════════════
 //  SPEECH SYNTHESIS
 // ══════════════════════════════════════════════════
-
-// Known female PT-BR voice names across Chrome/Edge/macOS/iOS
 const FEMALE_VOICE_PRIORITY = [
-  'Microsoft Francisca',        // Edge neural (melhor qualidade)
-  'Google português do Brasil', // Chrome desktop
-  'Luciana',                    // macOS / iOS (pt-BR)
-  'Microsoft Maria',            // Edge/Windows legado
+  'Microsoft Francisca',
+  'Google português do Brasil',
+  'Luciana',
+  'Microsoft Maria',
   'Google Brazil',
   'Google Brasil',
-  'Fernanda',                   // iOS legado
+  'Fernanda',
 ];
-
-let _cachedVoice = null; // set after voices load or user picks
 
 function getBestVoice() {
   const voices = synth.getVoices();
   if (!voices.length) return null;
-
-  // Try user-saved preference first
   const savedName = store.get('voice');
   if (savedName) {
     const saved = voices.find(v => v.name === savedName);
     if (saved) return saved;
   }
-
-  // Try known-good female voices by priority
   for (const name of FEMALE_VOICE_PRIORITY) {
     const v = voices.find(v => v.name.includes(name));
     if (v) return v;
   }
-
-  // Fallback: any pt-BR, prefer shorter names (usually built-in > network)
   const ptBR = voices.filter(v => v.lang === 'pt-BR' || v.lang === 'pt_BR');
   if (ptBR.length) return ptBR[0];
   return voices.find(v => v.lang.startsWith('pt')) || null;
 }
 
 function populateVoiceSelect() {
-  // Populate settings screen selector
   const sel = document.getElementById('cfg-voice-select');
   if (!sel) return;
   const voices = synth.getVoices().filter(v => v.lang.startsWith('pt'));
@@ -1186,16 +1484,18 @@ function populateVoiceSelect() {
 // ══════════════════════════════════════════════════
 function loadSettingsDefaults() {
   const cfg          = store.get('cfg') || {};
-  const silence      = cfg.silence       ?? 3;
-  const keywords     = cfg.keywords      ?? 'sofia,sophia';
-  const rate         = cfg.rate          ?? 1.0;
-  const pitch        = cfg.pitch         ?? 1.1;
-  const inactivity   = cfg.inactivity    ?? 30;   // 30 segundos padrão
-  const farewell     = cfg.farewell      ?? 'Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser.';
+  const silence      = cfg.silence      ?? 3;
+  const keywords     = cfg.keywords     ?? 'sofia,sophia';
+  const rate         = cfg.rate         ?? 1.0;
+  const pitch        = cfg.pitch        ?? 1.1;
+  const inactivity   = cfg.inactivity   ?? 30;
+  const farewell     = cfg.farewell     ?? FAREWELL_MSG;
   const assistantName = cfg.assistantName ?? 'Sophia';
   const googleClientId = localStorage.getItem('sophia_google_client_id') || '';
+  const savedNickname  = store.get('name') || userName;
+  const savedApiKey    = store.get('key') || '';
+  const savedGhToken   = store.get('gh') || '';
 
-  // Apply to runtime vars
   SILENCE_MS    = Math.round(silence * 1000);
   KEYWORD_RE    = buildKeywordRE(keywords);
   VOICE_RATE    = rate;
@@ -1205,28 +1505,46 @@ function loadSettingsDefaults() {
   ASSISTANT_NAME = assistantName;
   updateAssistantNameUI();
 
-  // Populate UI controls
   const s = v => document.getElementById(v);
   if (s('cfg-silence')) {
     s('cfg-silence').value = silence;
     s('cfg-silence-val').textContent = silence.toFixed(1) + 's';
   }
-  if (s('cfg-keywords')) s('cfg-keywords').value = keywords;
-  if (s('cfg-rate')) {
-    s('cfg-rate').value = rate;
-    s('cfg-rate-val').textContent = rate.toFixed(2);
-  }
-  if (s('cfg-pitch')) {
-    s('cfg-pitch').value = pitch;
-    s('cfg-pitch-val').textContent = pitch.toFixed(2);
-  }
-  if (s('cfg-inactivity')) {
-    s('cfg-inactivity').value = inactivity;
-    s('cfg-inactivity-val').textContent = formatInactivity(inactivity);
-  }
-  if (s('cfg-farewell'))         s('cfg-farewell').value = farewell;
-  if (s('cfg-assistant-name'))   s('cfg-assistant-name').value = assistantName;
+  if (s('cfg-keywords'))       s('cfg-keywords').value       = keywords;
+  if (s('cfg-rate'))           { s('cfg-rate').value = rate; s('cfg-rate-val').textContent = rate.toFixed(2); }
+  if (s('cfg-pitch'))          { s('cfg-pitch').value = pitch; s('cfg-pitch-val').textContent = pitch.toFixed(2); }
+  if (s('cfg-inactivity'))     { s('cfg-inactivity').value = inactivity; s('cfg-inactivity-val').textContent = formatInactivity(inactivity); }
+  if (s('cfg-farewell'))       s('cfg-farewell').value       = farewell;
+  if (s('cfg-assistant-name')) s('cfg-assistant-name').value = assistantName;
   if (s('cfg-google-client-id')) s('cfg-google-client-id').value = googleClientId;
+  if (s('cfg-nickname'))       s('cfg-nickname').value       = savedNickname;
+  if (s('cfg-api-key'))        s('cfg-api-key').value        = savedApiKey;
+  if (s('cfg-gh-token'))       s('cfg-gh-token').value       = savedGhToken;
+}
+
+function renderSettingsAccountArea() {
+  const area = document.getElementById('settings-account-area');
+  if (!area) return;
+
+  if (currentGoogleUser) {
+    area.innerHTML = `
+      <div class="account-user-card">
+        <img src="${currentGoogleUser.picture}" alt="${currentGoogleUser.name}" />
+        <div class="au-info">
+          <div class="au-name">${currentGoogleUser.name}</div>
+          <div class="au-email">${currentGoogleUser.email}</div>
+        </div>
+        <span class="au-badge">● conectado</span>
+      </div>
+      <div style="text-align:right;margin-bottom:0.8rem">
+        <button class="btn-danger-sm" onclick="signOutGoogle()">Sair da conta Google</button>
+      </div>`;
+  } else {
+    area.innerHTML = `
+      <div class="anon-badge">
+        👤 Modo anônimo — dados salvos apenas neste dispositivo
+      </div>`;
+  }
 }
 
 function formatInactivity(secs) {
@@ -1258,15 +1576,33 @@ function saveSettings() {
   const farewell       = document.getElementById('cfg-farewell').value.trim() || FAREWELL_MSG;
   const assistantName  = (document.getElementById('cfg-assistant-name').value.trim() || 'Sophia');
   const googleClientId = (document.getElementById('cfg-google-client-id').value.trim() || '');
+  const nickname       = (document.getElementById('cfg-nickname').value.trim() || userName);
+  const newApiKey      = document.getElementById('cfg-api-key').value.trim();
+  const newGhToken     = document.getElementById('cfg-gh-token').value.trim();
 
-  // Persist
+  // Salva config geral
   store.set('cfg', { silence, keywords, rate, pitch, inactivity, farewell, assistantName });
   if (voice) store.set('voice', voice);
-  // Google Client ID stored globally (not per-user)
+
+  // Salva credenciais (por usuário)
+  if (newApiKey.startsWith('sk-')) {
+    store.set('key', newApiKey);
+    apiKey = newApiKey;
+  }
+  if (newGhToken) {
+    store.set('gh', newGhToken);
+    ghToken = newGhToken;
+  }
+
+  // Salva apelido
+  store.set('name', nickname);
+  userName = nickname;
+
+  // Google Client ID — global, não por usuário
   if (googleClientId) localStorage.setItem('sophia_google_client_id', googleClientId);
   else localStorage.removeItem('sophia_google_client_id');
 
-  // Apply immediately
+  // Aplica imediatamente
   SILENCE_MS     = Math.round(silence * 1000);
   KEYWORD_RE     = buildKeywordRE(keywords);
   VOICE_RATE     = rate;
@@ -1274,11 +1610,9 @@ function saveSettings() {
   INACTIVITY_MS  = Math.round(inactivity * 1000);
   FAREWELL_MSG   = farewell;
   ASSISTANT_NAME = assistantName;
-  _cachedVoice   = null;
   GOOGLE_CLIENT_ID = googleClientId;
 
   updateAssistantNameUI();
-  initGoogleAuth(); // reinit Google if client ID changed
 
   const saved = document.getElementById('settings-saved');
   saved.classList.add('show');
@@ -1291,7 +1625,8 @@ function testVoice() {
   const voice = document.getElementById('cfg-voice-select').value;
 
   stopSpeech();
-  const utt = new SpeechSynthesisUtterance('Olá, eu sou Sophia. Sua companheira de jornada espiritual.');
+  const phrase = `Olá, ${userName}. Eu sou ${ASSISTANT_NAME}. Sua companheira de jornada espiritual.`;
+  const utt = new SpeechSynthesisUtterance(phrase);
   utt.lang  = 'pt-BR';
   utt.rate  = rate;
   utt.pitch = pitch;
@@ -1304,6 +1639,7 @@ function testVoice() {
 function showSettings() {
   populateVoiceSelect();
   loadSettingsDefaults();
+  renderSettingsAccountArea();
   show('settings');
 }
 
@@ -1313,8 +1649,10 @@ function showSettings() {
 function updateAssistantNameUI() {
   const n = ASSISTANT_NAME || 'Sophia';
   document.title = `${n} — Jornada Espiritual`;
-  const setupTitle = document.getElementById('setup-title');
-  if (setupTitle) setupTitle.textContent = n;
+  ['login-title','setup-title'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = n;
+  });
   const sessionTitle = document.getElementById('session-title');
   if (sessionTitle) sessionTitle.textContent = `🕊️ ${n}`;
   const stopBtn = document.getElementById('stop-btn');
@@ -1322,93 +1660,33 @@ function updateAssistantNameUI() {
 }
 
 // ══════════════════════════════════════════════════
-//  GOOGLE SIGN-IN
+//  GOOGLE SIGN OUT
 // ══════════════════════════════════════════════════
-function initGoogleAuth() {
-  const area = document.getElementById('google-signin-area');
-  if (!GOOGLE_CLIENT_ID || typeof google === 'undefined' || !google?.accounts) {
-    if (area) area.style.display = 'none';
-    return;
-  }
-  if (area) area.style.display = 'block';
-
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback:  handleGoogleCredential,
-    auto_select: false,
-  });
-
-  const btnArea = document.getElementById('g_id_onload_area');
-  if (btnArea) {
-    btnArea.innerHTML = '';
-    google.accounts.id.renderButton(btnArea, {
-      theme: 'filled_black',
-      size:  'large',
-      text:  'signin_with',
-      shape: 'pill',
-      locale: 'pt-BR',
-    });
-  }
-}
-
-function handleGoogleCredential(response) {
-  // Decode JWT payload (client-side only — fine for identity, not authorization)
-  const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-  currentGoogleUser = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
-
-  // Show user chip in header
-  const chip   = document.getElementById('header-user');
-  const avatar = document.getElementById('header-avatar');
-  const uname  = document.getElementById('header-uname');
-  if (chip)   { chip.style.display = 'flex'; }
-  if (avatar) { avatar.src = payload.picture; avatar.alt = payload.name; }
-  if (uname)  { uname.textContent = payload.name.split(' ')[0]; }
-
-  // Migrate anonymous data to Google user namespace if no user data yet
-  const hasUserData = store.get('key');
-  if (!hasUserData) {
-    const anonKey  = localStorage.getItem('sophia_key');
-    const anonGh   = localStorage.getItem('sophia_gh');
-    const anonName = localStorage.getItem('sophia_name');
-    const anonGist = localStorage.getItem('sophia_gist_id');
-    const anonSess = localStorage.getItem('sophia_sessions');
-    const anonIns  = localStorage.getItem('sophia_insights');
-    if (anonKey)  store.set('key',      JSON.parse(anonKey));
-    if (anonGh)   store.set('gh',       JSON.parse(anonGh));
-    if (anonName) store.set('name',     JSON.parse(anonName));
-    if (anonGist) store.set('gist_id',  JSON.parse(anonGist));
-    if (anonSess) store.set('sessions', JSON.parse(anonSess));
-    if (anonIns)  store.set('insights', JSON.parse(anonIns));
-  }
-
-  // If already has an API key, go straight to session
-  const savedKey = store.get('key');
-  if (savedKey?.startsWith?.('sk-')) {
-    apiKey   = savedKey;
-    ghToken  = store.get('gh') || '';
-    userName = store.get('name') || payload.name.split(' ')[0];
-    gistId   = store.get('gist_id') || '';
-    document.getElementById('key-input').value  = apiKey;
-    document.getElementById('gh-input').value   = ghToken;
-    document.getElementById('name-input').value = userName;
-    const doInit = async () => {
-      if (ghToken && !gistId) await findOrCreateGist();
-      if (ghToken) await loadFromGist();
-      initSession();
-    };
-    doInit().catch(console.warn);
-  }
-  // Otherwise stay on setup screen so user can enter API key
-}
-
 function signOutGoogle() {
   if (!confirm(`Sair da conta ${currentGoogleUser?.name}?`)) return;
+  if (typeof google !== 'undefined' && google?.accounts) {
+    google.accounts.id.disableAutoSelect();
+  }
   currentGoogleUser = null;
+  apiKey = ghToken = gistId = '';
+  userName = 'Viajante';
   document.getElementById('header-user').style.display = 'none';
-  apiKey = ghToken = gistId = userName = '';
-  show('setup');
+  if (GOOGLE_CLIENT_ID) {
+    show('login');
+    const notConn = document.getElementById('login-not-connected');
+    const conn    = document.getElementById('login-connected');
+    if (notConn) notConn.style.display = 'block';
+    if (conn)    conn.style.display    = 'none';
+    updateLoginStatus('offline', 'Não conectado');
+    setTimeout(initGoogleAuth, 300);
+  } else {
+    show('setup');
+  }
 }
 
+// ══════════════════════════════════════════════════
+//  SPEECH
+// ══════════════════════════════════════════════════
 function speak(text) {
   stopSpeech();
   if (!synth) return;
@@ -1417,22 +1695,21 @@ function speak(text) {
   utt.lang    = 'pt-BR';
   utt.rate    = VOICE_RATE;
   utt.pitch   = VOICE_PITCH;
-
   const v = getBestVoice();
   if (v) utt.voice = v;
 
   utt.onstart = () => {
-    clearInactivityTimer(); // Sophia is speaking, no need to count inactivity
+    clearInactivityTimer();
     try { if (recognition) recognition.stop(); } catch {}
     setMicState('speaking');
-    setStatus('Sophia falando… toque para interromper');
+    setStatus(`${ASSISTANT_NAME} falando… toque para interromper`);
   };
   const _afterSpeak = () => {
     isProcessing = false;
     if (autoMode) {
-      setStatus('Ouvindo… diga "Sofia" ou pause 3s para enviar');
+      setStatus('Ouvindo… diga "Sofia" ou pause para enviar');
       setTimeout(startListening, 600);
-      startInactivityTimer(); // begin countdown waiting for user response
+      startInactivityTimer();
     } else {
       setMicState('idle');
       setStatus('Microfone pausado — toque ▶ para retomar');
@@ -1443,30 +1720,21 @@ function speak(text) {
   synth.speak(utt);
 }
 
-// ── Inactivity timer ──────────────────────────────
 function startInactivityTimer() {
   clearInactivityTimer();
-  if (!INACTIVITY_MS) return; // 0 = disabled
+  if (!INACTIVITY_MS) return;
   inactivityTimer = setTimeout(() => {
-    // Only fire if we're still listening and not mid-conversation
     if (!isProcessing && autoMode) {
       autoMode = false;
       clearTimeout(silenceTimer);
       try { if (recognition) recognition.stop(); } catch {}
-      // Sophia verbalizes the farewell — not added to chat, just spoken
       const utt = new SpeechSynthesisUtterance(FAREWELL_MSG);
-      utt.lang  = 'pt-BR';
-      utt.rate  = VOICE_RATE;
-      utt.pitch = VOICE_PITCH;
+      utt.lang  = 'pt-BR'; utt.rate = VOICE_RATE; utt.pitch = VOICE_PITCH;
       const v = getBestVoice();
       if (v) utt.voice = v;
-      utt.onend = () => {
-        setMicState('idle');
-        setStatus('Em pausa — toque ▶ para retomar a conversa');
-      };
+      utt.onend = () => { setMicState('idle'); setStatus('Em pausa — toque ▶ para retomar'); };
       synth.speak(utt);
       setMicState('speaking');
-      setStatus('Sophia se despedindo…');
     }
   }, INACTIVITY_MS);
 }
@@ -1499,16 +1767,16 @@ async function endSession() {
 
   const transcript = messages
     .filter(m => m.content !== '[início da sessão]')
-    .map(m => `${m.role === 'user' ? userName : 'Sophia'}: ${m.content}`)
+    .map(m => `${m.role === 'user' ? userName : ASSISTANT_NAME}: ${m.content}`)
     .join('\n\n');
 
   try {
     const summaryResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type':                        'application/json',
-        'x-api-key':                           apiKey,
-        'anthropic-version':                   '2023-06-01',
+        'Content-Type': 'application/json',
+        'x-api-key':    apiKey,
+        'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
@@ -1534,7 +1802,6 @@ ${transcript}`,
     saveSessionRecord(summary);
     appendInsights(summary);
 
-    // Show in UI
     const el = document.createElement('div');
     el.className = 'msg sophia';
     el.innerHTML = `
@@ -1547,8 +1814,6 @@ ${transcript}`,
     c.scrollTop = c.scrollHeight;
 
     speak(`Reflexão desta sessão. ${summary}`);
-
-    // Sync to Gist
     if (ghToken) saveToGist();
 
   } catch (e) {
@@ -1600,7 +1865,6 @@ function setMicState(state) {
   const btn = document.getElementById('mic-btn');
   btn.classList.remove('listening','speaking');
   btn.disabled = false;
-  // idle when autoMode = show pause icon (tap to pause); idle when !autoMode = play icon
   const idleIcon = autoMode ? '⏸️' : '▶️';
   const map = { listening: ['listening','🔴'], speaking: ['speaking','🔊'], loading: [null,'⏳'], idle: [null, idleIcon] };
   const [cls, icon] = map[state] || [null, idleIcon];
@@ -1613,48 +1877,53 @@ function setMicState(state) {
 //  BOOT
 // ══════════════════════════════════════════════════
 window.addEventListener('load', async () => {
-  // Load user settings into runtime vars
   loadSettingsDefaults();
 
-  // Populate voice selector once voices are available
   if (synth) {
-    const tryPopulate = () => { if (synth.getVoices().length) populateVoiceSelect(); };
-    if (synth.onvoiceschanged !== undefined) {
-      synth.onvoiceschanged = () => { populateVoiceSelect(); };
-    }
-    synth.getVoices(); // trigger load
-    setTimeout(tryPopulate, 500); // fallback for browsers that don't fire the event
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = () => populateVoiceSelect();
+    synth.getVoices();
+    setTimeout(() => { if (synth.getVoices().length) populateVoiceSelect(); }, 500);
   }
 
-  // Init Google Sign-In (waits for GSI script to load)
-  setTimeout(initGoogleAuth, 800);
+  if (GOOGLE_CLIENT_ID) {
+    // ── Fluxo com Google ──
+    show('login');
+    // Atualiza status na tela de login
+    updateLoginStatus('loading', 'Verificando conta…');
+    setTimeout(() => {
+      initGoogleAuth();
+      // Se o GSI não auto-selecionar em 2s, mostra "não conectado"
+      setTimeout(() => {
+        if (!currentGoogleUser) updateLoginStatus('offline', 'Não conectado');
+      }, 2000);
+    }, 800);
+  } else {
+    // ── Fluxo anônimo ──
+    const savedKey  = store.get('key');
+    const savedGh   = store.get('gh');
+    const savedName = store.get('name');
+    const savedGist = store.get('gist_id');
 
-  const savedKey  = store.get('key');
-  const savedGh   = store.get('gh');
-  const savedName = store.get('name');
-  const savedGist = store.get('gist_id');
+    if (savedKey?.startsWith('sk-')) {
+      apiKey   = savedKey;
+      ghToken  = savedGh  || '';
+      userName = savedName || 'Viajante';
+      gistId   = savedGist || '';
 
-  if (savedKey?.startsWith('sk-')) {
-    apiKey   = savedKey;
-    ghToken  = savedGh  || '';
-    userName = savedName || 'Alexandre';
-    gistId   = savedGist || '';
-
-    document.getElementById('key-input').value  = savedKey;
-    document.getElementById('gh-input').value   = ghToken;
-    document.getElementById('name-input').value = userName;
-
-    if (ghToken) {
-      setSyncState('syncing');
-      try {
-        if (!gistId) await findOrCreateGist();
-        await loadFromGist();
-      } catch (e) {
-        console.warn('Boot sync error', e);
-        setSyncState('error');
+      if (ghToken) {
+        setSyncState('syncing');
+        try {
+          if (!gistId) await findOrCreateGist();
+          await loadFromGist();
+        } catch (e) {
+          console.warn('Boot sync error', e);
+          setSyncState('error');
+        }
       }
+      initSession();
+    } else {
+      show('setup');
     }
-    initSession();
   }
 });
 </script>
