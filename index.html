@@ -355,6 +355,13 @@
       <button class="btn-sm" onclick="manualSync()">☁️ Sincronizar</button>
       <button class="btn-sm" onclick="clearAll()">🔑 Sair</button>
     </div>
+    <div class="voice-row" style="margin-top:0.5rem">
+      <label style="color:var(--muted);font-size:0.75rem">🔊 Voz:</label>
+      <select id="voice-select" onchange="saveVoice(this.value)"
+        style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:0.75rem;max-width:220px">
+        <option value="">carregando vozes…</option>
+      </select>
+    </div>
   </div>
 </div>
 
@@ -819,19 +826,69 @@ async function _doHandleInput(text) {
 // ══════════════════════════════════════════════════
 //  SPEECH SYNTHESIS
 // ══════════════════════════════════════════════════
+
+// Known female PT-BR voice names across Chrome/Edge/macOS/iOS
+const FEMALE_VOICE_PRIORITY = [
+  'Microsoft Francisca',        // Edge neural (melhor qualidade)
+  'Google português do Brasil', // Chrome desktop
+  'Luciana',                    // macOS / iOS (pt-BR)
+  'Microsoft Maria',            // Edge/Windows legado
+  'Google Brazil',
+  'Google Brasil',
+  'Fernanda',                   // iOS legado
+];
+
+let _cachedVoice = null; // set after voices load or user picks
+
+function getBestVoice() {
+  const voices = synth.getVoices();
+  if (!voices.length) return null;
+
+  // Try user-saved preference first
+  const savedName = store.get('sophia_voice');
+  if (savedName) {
+    const saved = voices.find(v => v.name === savedName);
+    if (saved) return saved;
+  }
+
+  // Try known-good female voices by priority
+  for (const name of FEMALE_VOICE_PRIORITY) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) return v;
+  }
+
+  // Fallback: any pt-BR, prefer shorter names (usually built-in > network)
+  const ptBR = voices.filter(v => v.lang === 'pt-BR' || v.lang === 'pt_BR');
+  if (ptBR.length) return ptBR[0];
+  return voices.find(v => v.lang.startsWith('pt')) || null;
+}
+
+function populateVoiceSelect() {
+  const sel = document.getElementById('voice-select');
+  if (!sel) return;
+  const voices = synth.getVoices().filter(v => v.lang.startsWith('pt'));
+  if (!voices.length) return;
+  const saved = store.get('sophia_voice') || (getBestVoice()?.name ?? '');
+  sel.innerHTML = voices.map(v =>
+    `<option value="${v.name}" ${v.name === saved ? 'selected' : ''}>${v.name}</option>`
+  ).join('');
+}
+
+function saveVoice(name) {
+  store.set('sophia_voice', name);
+  _cachedVoice = null; // force re-pick on next speak
+}
+
 function speak(text) {
   stopSpeech();
   if (!synth) return;
   const clean = text.replace(/\*\*/g,'').replace(/\*/g,'').replace(/#/g,'').replace(/\n/g,' ');
   const utt   = new SpeechSynthesisUtterance(clean);
   utt.lang    = 'pt-BR';
-  utt.rate    = 0.9;
-  utt.pitch   = 1.05;
+  utt.rate    = 1.0;   // natural speed
+  utt.pitch   = 1.1;   // slightly feminine
 
-  const voices = synth.getVoices();
-  const v = voices.find(v => v.lang === 'pt-BR' && /female|woman|feminina/i.test(v.name))
-         || voices.find(v => v.lang === 'pt-BR')
-         || voices.find(v => v.lang.startsWith('pt'));
+  const v = getBestVoice();
   if (v) utt.voice = v;
 
   utt.onstart = () => {
@@ -992,8 +1049,15 @@ function setMicState(state) {
 //  BOOT
 // ══════════════════════════════════════════════════
 window.addEventListener('load', async () => {
-  if (synth?.onvoiceschanged !== undefined) synth.onvoiceschanged = () => {};
-  synth?.getVoices();
+  // Populate voice selector once voices are available
+  if (synth) {
+    const tryPopulate = () => { if (synth.getVoices().length) populateVoiceSelect(); };
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = () => { populateVoiceSelect(); };
+    }
+    synth.getVoices(); // trigger load
+    setTimeout(tryPopulate, 500); // fallback for browsers that don't fire the event
+  }
 
   const savedKey  = store.get('sophia_key');
   const savedGh   = store.get('sophia_gh');
