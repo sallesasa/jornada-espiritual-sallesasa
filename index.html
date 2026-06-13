@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Sophia — Jornada Espiritual</title>
+  <title id="page-title">Sophia — Jornada Espiritual</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --bg:          #0c0b14;
@@ -387,6 +388,26 @@
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--sophia-d); border-radius: 2px; }
+
+    /* ── GOOGLE AUTH ── */
+    .google-divider {
+      display: flex; align-items: center; gap: 0.75rem;
+      color: var(--muted); font-size: 0.78rem; margin: 1.2rem 0;
+    }
+    .google-divider::before, .google-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    #g_id_onload_area { display: flex; justify-content: center; margin-bottom: 0.5rem; }
+    .user-chip {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 0.3rem 0.7rem 0.3rem 0.3rem;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    .user-chip:hover { border-color: var(--sophia); }
+    .user-chip img { width: 26px; height: 26px; border-radius: 50%; }
+    .user-chip span { font-size: 0.78rem; color: var(--muted); }
+    #header-user { display: none; }
   </style>
 </head>
 <body>
@@ -396,7 +417,7 @@
 <!-- ══ SETUP ══ -->
 <div id="setup" class="screen active">
   <div class="setup-icon">🕊️</div>
-  <h1>Sophia</h1>
+  <h1 id="setup-title">Sophia</h1>
   <p class="tagline">Sua companheira de jornada espiritual — disponível em qualquer dispositivo.</p>
 
   <div class="setup-card">
@@ -424,6 +445,16 @@
 
     <button class="btn-primary" onclick="startJourney()">Começar minha jornada ✨</button>
   </div>
+
+  <!-- Google Sign-In (aparece somente se Google Client ID estiver configurado) -->
+  <div id="google-signin-area" style="display:none;width:100%;max-width:420px;margin-top:1rem">
+    <div class="google-divider">ou entre com</div>
+    <div id="g_id_onload_area"></div>
+    <p style="color:var(--muted);font-size:0.72rem;text-align:center;margin-top:0.5rem">
+      Login Google salva chaves por conta — histórico separado por pessoa.
+    </p>
+  </div>
+
   <p id="setup-error"></p>
 </div>
 
@@ -431,10 +462,14 @@
 <div id="session" class="screen">
   <div class="session-bar">
     <div class="session-bar-left">
-      <h2>🕊️ Sophia</h2>
+      <h2 id="session-title">🕊️ Sophia</h2>
       <span id="session-date"></span>
     </div>
     <div class="bar-actions">
+      <div id="header-user" class="user-chip" onclick="signOutGoogle()" title="Sair da conta Google">
+        <img id="header-avatar" src="" alt="" />
+        <span id="header-uname"></span>
+      </div>
       <button class="btn-icon" onclick="showHistory()">📖 Histórico</button>
       <button class="btn-icon" onclick="showSettings()">⚙️ Config</button>
       <button class="btn-icon" onclick="endSession()">✨ Encerrar</button>
@@ -448,7 +483,7 @@
     <button id="mic-btn" onclick="toggleMic()">🎙️</button>
     <div id="status">Toque para falar</div>
     <div class="voice-row">
-      <button class="btn-sm" onclick="stopSpeech()">⏹ Interromper Sophia</button>
+      <button class="btn-sm" id="stop-btn" onclick="stopSpeech()">⏹ Interromper Sophia</button>
       <button class="btn-sm" onclick="endSession()">✨ Gerar reflexão</button>
       <button class="btn-sm" onclick="manualSync()">☁️ Sincronizar</button>
       <button class="btn-sm" onclick="clearAll()">🔑 Sair</button>
@@ -463,9 +498,39 @@
     <h2>⚙️ Configurações</h2>
   </div>
 
+  <!-- IDENTIDADE -->
+  <div class="settings-section">
+    <h3>🕊️ Identidade do assistente</h3>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        Nome do assistente
+        <small>Substitui "Sophia" em toda a interface e nas conversas</small>
+      </div>
+      <div class="setting-control">
+        <input type="text" id="cfg-assistant-name" value="Sophia" placeholder="Sophia" />
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        Google Client ID <span style="color:var(--green);font-size:0.7rem">(opcional)</span>
+        <small>Habilita login com Google para múltiplos usuários com histórico separado.
+          <a href="https://console.cloud.google.com/apis/credentials" target="_blank"
+            style="color:var(--sophia)">→ Criar em Google Cloud Console</a>
+          (Credentials → Create → OAuth 2.0 → Web app → adicionar sua URL do Vercel)
+        </small>
+      </div>
+      <div class="setting-control">
+        <input type="text" id="cfg-google-client-id" placeholder="xxxx.apps.googleusercontent.com"
+          style="width:100%;max-width:280px;font-size:0.78rem" />
+      </div>
+    </div>
+  </div>
+
   <!-- VOZ -->
   <div class="settings-section">
-    <h3>🔊 Voz de Sophia</h3>
+    <h3>🔊 Voz do assistente</h3>
 
     <div class="setting-row">
       <div class="setting-label">
@@ -547,7 +612,7 @@
         <small>Se Sophia fizer uma pergunta e você não responder nada neste tempo, ela se despede e aguarda você retomar. Use 0 para desativar.</small>
       </div>
       <div class="setting-control" style="display:flex;align-items:center;gap:0.5rem">
-        <input type="range" id="cfg-inactivity" min="0" max="300" step="10" value="120"
+        <input type="range" id="cfg-inactivity" min="5" max="60" step="1" value="30"
           oninput="updateInactivityLabel(this.value)" />
         <span class="setting-value-badge" id="cfg-inactivity-val">2min</span>
       </div>
@@ -610,25 +675,35 @@ const GIST_DESC = 'jornada-espiritual-sallesasa';
 const GIST_FILE = 'sophia-data.json';
 
 // ══════════════════════════════════════════════════
-//  STORAGE (localStorage)
+//  GOOGLE AUTH STATE
+// ══════════════════════════════════════════════════
+let currentGoogleUser = null; // { sub, name, email, picture }
+let GOOGLE_CLIENT_ID  = localStorage.getItem('sophia_google_client_id') || '';
+let ASSISTANT_NAME    = 'Sophia';
+
+// ══════════════════════════════════════════════════
+//  STORAGE (localStorage, namespaced per Google user)
 // ══════════════════════════════════════════════════
 const store = {
-  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  // prefix: anonymous = 'sophia_', Google user = 'sophia_{sub}_'
+  _pfx: () => currentGoogleUser ? `sophia_${currentGoogleUser.sub}_` : 'sophia_',
+  get: k => { try { return JSON.parse(localStorage.getItem(store._pfx() + k)); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(store._pfx() + k, JSON.stringify(v)); } catch {} },
+  del: k => { try { localStorage.removeItem(store._pfx() + k); } catch {} },
 };
 
-const getSessions = () => store.get('sophia_sessions') || [];
-const getInsights = () => store.get('sophia_insights') || '';
+const getSessions = () => store.get('sessions') || [];
+const getInsights = () => store.get('insights') || '';
 
 function saveSessionRecord(summary) {
   const s = getSessions();
   s.push({ date: new Date().toISOString(), summary, n: s.length + 1 });
-  store.set('sophia_sessions', s);
+  store.set('sessions', s);
 }
 function appendInsights(text) {
   const prev = getInsights();
   const n    = getSessions().length;
-  store.set('sophia_insights', prev
+  store.set('insights', prev
     ? `${prev}\n\n── Sessão ${n} ──\n${text}`
     : `── Sessão ${n} ──\n${text}`);
 }
@@ -658,7 +733,7 @@ async function ghFetch(path, opts = {}) {
 
 async function findOrCreateGist() {
   // Try cached gist ID first
-  const cached = store.get('sophia_gist_id');
+  const cached = store.get('gist_id');
   if (cached) { gistId = cached; return; }
 
   // Search in user's gists (up to 100)
@@ -679,7 +754,7 @@ async function findOrCreateGist() {
     });
     gistId = created.id;
   }
-  store.set('sophia_gist_id', gistId);
+  store.set('gist_id', gistId);
 }
 
 async function loadFromGist() {
@@ -688,11 +763,26 @@ async function loadFromGist() {
   try {
     const data   = await ghFetch(`/gists/${gistId}`);
     const raw    = data.files[GIST_FILE]?.content;
-    if (!raw) return;
+    if (!raw) { setSyncState('synced'); return; }
     const parsed = JSON.parse(raw);
-    // Cloud wins — overwrite local
-    if (Array.isArray(parsed.sessions)) store.set('sophia_sessions', parsed.sessions);
-    if (typeof parsed.insights === 'string') store.set('sophia_insights', parsed.insights);
+
+    const localSessions = getSessions();
+    const cloudSessions = Array.isArray(parsed.sessions) ? parsed.sessions : [];
+    const localInsights = getInsights();
+    const cloudInsights = typeof parsed.insights === 'string' ? parsed.insights : '';
+
+    // Merge: keep whichever source has more sessions.
+    // If equal (e.g. both empty), prefer cloud (another device may have cleared local).
+    if (cloudSessions.length >= localSessions.length) {
+      store.set('sessions', cloudSessions);
+      store.set('insights', cloudInsights);
+    } else {
+      // Local has more data — push local up to cloud so it's never lost
+      console.log('loadFromGist: local has more sessions, pushing to cloud');
+      store.set('sessions', localSessions); // keep local
+      store.set('insights', localInsights);
+      setTimeout(saveToGist, 500); // sync local → cloud
+    }
     setSyncState('synced');
   } catch (e) {
     console.warn('Gist load error', e);
@@ -757,9 +847,9 @@ async function startJourney() {
   ghToken  = gh;
   userName = name || 'Alexandre';
 
-  store.set('sophia_key',   key);
-  store.set('sophia_gh',    gh);
-  store.set('sophia_name',  userName);
+  store.set('key',   key);
+  store.set('gh',    gh);
+  store.set('name',  userName);
 
   // If GitHub token provided, set up gist sync
   if (ghToken) {
@@ -778,7 +868,7 @@ async function startJourney() {
 
 function clearAll() {
   if (!confirm('Sair e remover dados deste dispositivo?')) return;
-  ['sophia_key','sophia_gh','sophia_name','sophia_gist_id'].forEach(k => localStorage.removeItem(k));
+  ['key','gh','name','gist_id'].forEach(k => store.del(k));
   apiKey = ghToken = gistId = userName = '';
   show('setup');
 }
@@ -808,16 +898,16 @@ async function initSession() {
   messages = [{ role: 'user', content: `[instrução de abertura: ${openInstruction}]` }];
 
   showTyping();
+  setStatus(`${ASSISTANT_NAME} está se preparando…`);
   try {
     const opening = await callClaude();
     removeTyping();
-    // Replace messages with proper exchange
     messages = [
       { role: 'user',      content: '[início da sessão]' },
       { role: 'assistant', content: opening },
     ];
     addMsgUI('sophia', opening);
-    speak(opening); // speak's onend auto-starts mic
+    speak(opening);
   } catch (e) {
     removeTyping();
     setStatus(`Erro: ${e.message}`);
@@ -831,7 +921,7 @@ async function initSession() {
 function buildSystem() {
   const sessionN   = getSessions().length + 1;
   const insights   = getInsights();
-  return `Você é Sophia, uma companheira espiritual sábia, direta e compassiva. Acompanha ${userName} em uma jornada pessoal de descoberta espiritual — não para convertê-lo a nenhuma religião, mas para ajudá-lo a encontrar paz autêntica com um conceito de divindade ou sentido que ressoe com ele.
+  return `Você é ${ASSISTANT_NAME}, uma companheira espiritual sábia, direta e compassiva. Acompanha ${userName} em uma jornada pessoal de descoberta espiritual — não para convertê-lo a nenhuma religião, mas para ajudá-lo a encontrar paz autêntica com um conceito de divindade ou sentido que ressoe com ele.
 
 SEU CONHECIMENTO:
 - Religiões do mundo: Cristianismo, Islã, Budismo, Hinduísmo, Judaísmo, Taoísmo, Sufismo, Estoicismo, tradições indígenas e africanas
@@ -1061,7 +1151,7 @@ function getBestVoice() {
   if (!voices.length) return null;
 
   // Try user-saved preference first
-  const savedName = store.get('sophia_voice');
+  const savedName = store.get('voice');
   if (savedName) {
     const saved = voices.find(v => v.name === savedName);
     if (saved) return saved;
@@ -1085,7 +1175,7 @@ function populateVoiceSelect() {
   if (!sel) return;
   const voices = synth.getVoices().filter(v => v.lang.startsWith('pt'));
   if (!voices.length) return;
-  const saved = store.get('sophia_voice') || (getBestVoice()?.name ?? '');
+  const saved = store.get('voice') || (getBestVoice()?.name ?? '');
   sel.innerHTML = voices.map(v =>
     `<option value="${v.name}" ${v.name === saved ? 'selected' : ''}>${v.name}</option>`
   ).join('');
@@ -1095,13 +1185,15 @@ function populateVoiceSelect() {
 //  SETTINGS SCREEN
 // ══════════════════════════════════════════════════
 function loadSettingsDefaults() {
-  const cfg       = store.get('sophia_cfg') || {};
-  const silence   = cfg.silence    ?? 3;
-  const keywords  = cfg.keywords   ?? 'sofia,sophia';
-  const rate      = cfg.rate       ?? 1.0;
-  const pitch     = cfg.pitch      ?? 1.1;
-  const inactivity = cfg.inactivity ?? 120;
-  const farewell  = cfg.farewell   ?? 'Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser.';
+  const cfg          = store.get('cfg') || {};
+  const silence      = cfg.silence       ?? 3;
+  const keywords     = cfg.keywords      ?? 'sofia,sophia';
+  const rate         = cfg.rate          ?? 1.0;
+  const pitch        = cfg.pitch         ?? 1.1;
+  const inactivity   = cfg.inactivity    ?? 30;   // 30 segundos padrão
+  const farewell     = cfg.farewell      ?? 'Parece que você precisou pausar por agora. Fico aqui esperando — retome quando quiser.';
+  const assistantName = cfg.assistantName ?? 'Sophia';
+  const googleClientId = localStorage.getItem('sophia_google_client_id') || '';
 
   // Apply to runtime vars
   SILENCE_MS    = Math.round(silence * 1000);
@@ -1110,6 +1202,8 @@ function loadSettingsDefaults() {
   VOICE_PITCH   = pitch;
   INACTIVITY_MS = Math.round(inactivity * 1000);
   FAREWELL_MSG  = farewell;
+  ASSISTANT_NAME = assistantName;
+  updateAssistantNameUI();
 
   // Populate UI controls
   const s = v => document.getElementById(v);
@@ -1130,7 +1224,9 @@ function loadSettingsDefaults() {
     s('cfg-inactivity').value = inactivity;
     s('cfg-inactivity-val').textContent = formatInactivity(inactivity);
   }
-  if (s('cfg-farewell')) s('cfg-farewell').value = farewell;
+  if (s('cfg-farewell'))         s('cfg-farewell').value = farewell;
+  if (s('cfg-assistant-name'))   s('cfg-assistant-name').value = assistantName;
+  if (s('cfg-google-client-id')) s('cfg-google-client-id').value = googleClientId;
 }
 
 function formatInactivity(secs) {
@@ -1158,22 +1254,31 @@ function saveSettings() {
   const rate       = parseFloat(document.getElementById('cfg-rate').value);
   const pitch      = parseFloat(document.getElementById('cfg-pitch').value);
   const voice      = document.getElementById('cfg-voice-select').value;
-  const inactivity = parseInt(document.getElementById('cfg-inactivity').value);
-  const farewell   = document.getElementById('cfg-farewell').value.trim()
-                     || FAREWELL_MSG;
+  const inactivity     = parseInt(document.getElementById('cfg-inactivity').value);
+  const farewell       = document.getElementById('cfg-farewell').value.trim() || FAREWELL_MSG;
+  const assistantName  = (document.getElementById('cfg-assistant-name').value.trim() || 'Sophia');
+  const googleClientId = (document.getElementById('cfg-google-client-id').value.trim() || '');
 
   // Persist
-  store.set('sophia_cfg', { silence, keywords, rate, pitch, inactivity, farewell });
-  if (voice) store.set('sophia_voice', voice);
+  store.set('cfg', { silence, keywords, rate, pitch, inactivity, farewell, assistantName });
+  if (voice) store.set('voice', voice);
+  // Google Client ID stored globally (not per-user)
+  if (googleClientId) localStorage.setItem('sophia_google_client_id', googleClientId);
+  else localStorage.removeItem('sophia_google_client_id');
 
   // Apply immediately
-  SILENCE_MS    = Math.round(silence * 1000);
-  KEYWORD_RE    = buildKeywordRE(keywords);
-  VOICE_RATE    = rate;
-  VOICE_PITCH   = pitch;
-  INACTIVITY_MS = Math.round(inactivity * 1000);
-  FAREWELL_MSG  = farewell;
-  _cachedVoice  = null;
+  SILENCE_MS     = Math.round(silence * 1000);
+  KEYWORD_RE     = buildKeywordRE(keywords);
+  VOICE_RATE     = rate;
+  VOICE_PITCH    = pitch;
+  INACTIVITY_MS  = Math.round(inactivity * 1000);
+  FAREWELL_MSG   = farewell;
+  ASSISTANT_NAME = assistantName;
+  _cachedVoice   = null;
+  GOOGLE_CLIENT_ID = googleClientId;
+
+  updateAssistantNameUI();
+  initGoogleAuth(); // reinit Google if client ID changed
 
   const saved = document.getElementById('settings-saved');
   saved.classList.add('show');
@@ -1200,6 +1305,108 @@ function showSettings() {
   populateVoiceSelect();
   loadSettingsDefaults();
   show('settings');
+}
+
+// ══════════════════════════════════════════════════
+//  ASSISTANT NAME UI
+// ══════════════════════════════════════════════════
+function updateAssistantNameUI() {
+  const n = ASSISTANT_NAME || 'Sophia';
+  document.title = `${n} — Jornada Espiritual`;
+  const setupTitle = document.getElementById('setup-title');
+  if (setupTitle) setupTitle.textContent = n;
+  const sessionTitle = document.getElementById('session-title');
+  if (sessionTitle) sessionTitle.textContent = `🕊️ ${n}`;
+  const stopBtn = document.getElementById('stop-btn');
+  if (stopBtn) stopBtn.textContent = `⏹ Interromper ${n}`;
+}
+
+// ══════════════════════════════════════════════════
+//  GOOGLE SIGN-IN
+// ══════════════════════════════════════════════════
+function initGoogleAuth() {
+  const area = document.getElementById('google-signin-area');
+  if (!GOOGLE_CLIENT_ID || typeof google === 'undefined' || !google?.accounts) {
+    if (area) area.style.display = 'none';
+    return;
+  }
+  if (area) area.style.display = 'block';
+
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback:  handleGoogleCredential,
+    auto_select: false,
+  });
+
+  const btnArea = document.getElementById('g_id_onload_area');
+  if (btnArea) {
+    btnArea.innerHTML = '';
+    google.accounts.id.renderButton(btnArea, {
+      theme: 'filled_black',
+      size:  'large',
+      text:  'signin_with',
+      shape: 'pill',
+      locale: 'pt-BR',
+    });
+  }
+}
+
+function handleGoogleCredential(response) {
+  // Decode JWT payload (client-side only — fine for identity, not authorization)
+  const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+  currentGoogleUser = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
+
+  // Show user chip in header
+  const chip   = document.getElementById('header-user');
+  const avatar = document.getElementById('header-avatar');
+  const uname  = document.getElementById('header-uname');
+  if (chip)   { chip.style.display = 'flex'; }
+  if (avatar) { avatar.src = payload.picture; avatar.alt = payload.name; }
+  if (uname)  { uname.textContent = payload.name.split(' ')[0]; }
+
+  // Migrate anonymous data to Google user namespace if no user data yet
+  const hasUserData = store.get('key');
+  if (!hasUserData) {
+    const anonKey  = localStorage.getItem('sophia_key');
+    const anonGh   = localStorage.getItem('sophia_gh');
+    const anonName = localStorage.getItem('sophia_name');
+    const anonGist = localStorage.getItem('sophia_gist_id');
+    const anonSess = localStorage.getItem('sophia_sessions');
+    const anonIns  = localStorage.getItem('sophia_insights');
+    if (anonKey)  store.set('key',      JSON.parse(anonKey));
+    if (anonGh)   store.set('gh',       JSON.parse(anonGh));
+    if (anonName) store.set('name',     JSON.parse(anonName));
+    if (anonGist) store.set('gist_id',  JSON.parse(anonGist));
+    if (anonSess) store.set('sessions', JSON.parse(anonSess));
+    if (anonIns)  store.set('insights', JSON.parse(anonIns));
+  }
+
+  // If already has an API key, go straight to session
+  const savedKey = store.get('key');
+  if (savedKey?.startsWith?.('sk-')) {
+    apiKey   = savedKey;
+    ghToken  = store.get('gh') || '';
+    userName = store.get('name') || payload.name.split(' ')[0];
+    gistId   = store.get('gist_id') || '';
+    document.getElementById('key-input').value  = apiKey;
+    document.getElementById('gh-input').value   = ghToken;
+    document.getElementById('name-input').value = userName;
+    const doInit = async () => {
+      if (ghToken && !gistId) await findOrCreateGist();
+      if (ghToken) await loadFromGist();
+      initSession();
+    };
+    doInit().catch(console.warn);
+  }
+  // Otherwise stay on setup screen so user can enter API key
+}
+
+function signOutGoogle() {
+  if (!confirm(`Sair da conta ${currentGoogleUser?.name}?`)) return;
+  currentGoogleUser = null;
+  document.getElementById('header-user').style.display = 'none';
+  apiKey = ghToken = gistId = userName = '';
+  show('setup');
 }
 
 function speak(text) {
@@ -1419,10 +1626,13 @@ window.addEventListener('load', async () => {
     setTimeout(tryPopulate, 500); // fallback for browsers that don't fire the event
   }
 
-  const savedKey  = store.get('sophia_key');
-  const savedGh   = store.get('sophia_gh');
-  const savedName = store.get('sophia_name');
-  const savedGist = store.get('sophia_gist_id');
+  // Init Google Sign-In (waits for GSI script to load)
+  setTimeout(initGoogleAuth, 800);
+
+  const savedKey  = store.get('key');
+  const savedGh   = store.get('gh');
+  const savedName = store.get('name');
+  const savedGist = store.get('gist_id');
 
   if (savedKey?.startsWith('sk-')) {
     apiKey   = savedKey;
