@@ -350,7 +350,7 @@
     <button id="mic-btn" onclick="toggleMic()">🎙️</button>
     <div id="status">Toque para falar</div>
     <div class="voice-row">
-      <button class="btn-sm" onclick="stopSpeech()">⏹ Silenciar</button>
+      <button class="btn-sm" onclick="stopSpeech()">⏹ Interromper Sophia</button>
       <button class="btn-sm" onclick="endSession()">✨ Gerar reflexão</button>
       <button class="btn-sm" onclick="manualSync()">☁️ Sincronizar</button>
       <button class="btn-sm" onclick="clearAll()">🔑 Sair</button>
@@ -378,9 +378,14 @@ let ghToken     = '';
 let gistId      = '';
 let userName    = 'Alexandre';
 let messages    = [];
-let isListening  = false;
-let isProcessing = false;
-let recognition  = null;
+let isListening   = false;
+let isProcessing  = false;
+let autoMode      = true;   // mic stays on automatically
+let recognition   = null;
+let finalTranscript = '';
+let silenceTimer    = null;
+const SILENCE_MS    = 3000;
+const KEYWORD_RE    = /\bsofi[ao]\b/i;
 const synth = window.speechSynthesis;
 const GIST_DESC = 'jornada-espiritual-sallesasa';
 const GIST_FILE = 'sophia-data.json';
@@ -592,7 +597,7 @@ async function initSession() {
       { role: 'assistant', content: opening },
     ];
     addMsgUI('sophia', opening);
-    speak(opening);
+    speak(opening); // speak's onend auto-starts mic
   } catch (e) {
     removeTyping();
     setStatus(`Erro: ${e.message}`);
@@ -692,51 +697,105 @@ function removeTyping() {
 // ══════════════════════════════════════════════════
 function initRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    setStatus('Use o Google Chrome para reconhecimento de voz.');
-    return null;
-  }
+  if (!SR) { setStatus('Use o Google Chrome para reconhecimento de voz.'); return null; }
+
   const r = new SR();
   r.lang = 'pt-BR';
-  r.continuous = false;
+  r.continuous = true;      // keeps listening without cutting off
   r.interimResults = true;
 
-  r.onstart  = () => { isListening = true; setMicState('listening'); setStatus('Ouvindo… fale agora'); };
+  r.onstart = () => {
+    isListening = true;
+    finalTranscript = '';
+    setMicState('listening');
+    setStatus('Ouvindo… diga "Sofia" ou pause 3s para enviar');
+  };
+
   r.onresult = e => {
-    let interim = '', final = '';
+    let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + ' ';
       else interim += e.results[i][0].transcript;
     }
-    document.getElementById('interim').textContent = interim || final;
-    if (final.trim()) handleUserInput(final.trim());
+    document.getElementById('interim').textContent = finalTranscript + interim;
+
+    // Reset silence timer on every new word
+    clearTimeout(silenceTimer);
+    if (finalTranscript.trim()) {
+      silenceTimer = setTimeout(submitSpeech, SILENCE_MS);
+    }
+
+    // Keyword trigger: "Sofia" or "Sophia" anywhere in accumulated text
+    if (KEYWORD_RE.test(finalTranscript + interim) && finalTranscript.trim().length > 3) {
+      clearTimeout(silenceTimer);
+      submitSpeech();
+    }
   };
-  r.onerror  = e => {
+
+  r.onerror = e => {
     isListening = false;
-    setMicState('idle');
-    if (e.error !== 'no-speech') setStatus(`Erro: ${e.error}`);
-    else setStatus('Toque para falar');
+    clearTimeout(silenceTimer);
+    if (e.error === 'no-speech') {
+      // Browser timed out on silence — restart if still in auto mode
+      if (autoMode && !isProcessing) setTimeout(startListening, 300);
+    } else {
+      setMicState('idle');
+      setStatus(`Erro: ${e.error}. Toque para reativar.`);
+    }
   };
-  r.onend    = () => {
+
+  r.onend = () => {
     isListening = false;
+    clearTimeout(silenceTimer);
     document.getElementById('interim').textContent = '';
-    if (!isProcessing) { setMicState('idle'); setStatus('Toque para falar'); }
+    // Auto-restart unless we're processing or user paused
+    if (autoMode && !isProcessing) setTimeout(startListening, 400);
+    else if (!autoMode) { setMicState('idle'); setStatus('Microfone pausado — toque ▶ para retomar'); }
   };
+
   return r;
 }
 
-function toggleMic() {
-  if (isProcessing) return;
-  if (synth.speaking) { stopSpeech(); return; }
+function startListening() {
+  if (isProcessing || synth.speaking || isListening) return;
   if (!recognition) recognition = initRecognition();
   if (!recognition) return;
-  if (isListening) recognition.stop();
-  else { try { recognition.start(); } catch { recognition = initRecognition(); recognition?.start(); } }
+  finalTranscript = '';
+  try { recognition.start(); }
+  catch { recognition = initRecognition(); try { recognition.start(); } catch {} }
+}
+
+function submitSpeech() {
+  const text = finalTranscript.trim();
+  finalTranscript = '';
+  clearTimeout(silenceTimer);
+  if (!text || isProcessing) return;
+  isProcessing = true;            // set BEFORE stop so onend sees it
+  try { recognition.stop(); } catch {}
+  _doHandleInput(text);
+}
+
+function toggleMic() {
+  if (synth.speaking) { stopSpeech(); return; }
+
+  autoMode = !autoMode;
+  if (autoMode) {
+    startListening();
+  } else {
+    clearTimeout(silenceTimer);
+    try { recognition.stop(); } catch {}
+    setMicState('idle');
+    setStatus('Microfone pausado — toque ▶ para retomar');
+  }
 }
 
 async function handleUserInput(text) {
   if (!text || isProcessing) return;
   isProcessing = true;
+  _doHandleInput(text);
+}
+
+async function _doHandleInput(text) {
   messages.push({ role: 'user', content: text });
   addMsgUI('user', text);
   setMicState('loading');
@@ -775,18 +834,33 @@ function speak(text) {
          || voices.find(v => v.lang.startsWith('pt'));
   if (v) utt.voice = v;
 
-  utt.onstart = () => { setMicState('speaking'); setStatus('Sophia falando… toque para interromper'); };
-  utt.onend   = () => { setMicState('idle'); setStatus('Toque para falar'); isProcessing = false; };
-  utt.onerror = () => { setMicState('idle'); setStatus('Toque para falar'); isProcessing = false; };
+  utt.onstart = () => {
+    // Stop mic while Sophia speaks so she doesn't hear herself
+    try { if (recognition) recognition.stop(); } catch {}
+    setMicState('speaking');
+    setStatus('Sophia falando… toque para interromper');
+  };
+  const _afterSpeak = () => {
+    isProcessing = false;
+    if (autoMode) {
+      setStatus('Ouvindo… diga "Sofia" ou pause 3s para enviar');
+      setTimeout(startListening, 600); // small delay after TTS ends
+    } else {
+      setMicState('idle');
+      setStatus('Microfone pausado — toque ▶ para retomar');
+    }
+  };
+  utt.onend   = _afterSpeak;
+  utt.onerror = _afterSpeak;
   synth.speak(utt);
 }
 
 function stopSpeech() {
   if (synth.speaking || synth.pending) {
     synth.cancel();
-    setMicState('idle');
-    setStatus('Toque para falar');
     isProcessing = false;
+    if (autoMode) setTimeout(startListening, 300);
+    else { setMicState('idle'); setStatus('Microfone pausado — toque ▶ para retomar'); }
   }
 }
 
@@ -905,8 +979,10 @@ function setMicState(state) {
   const btn = document.getElementById('mic-btn');
   btn.classList.remove('listening','speaking');
   btn.disabled = false;
-  const map = { listening: ['listening','🔴'], speaking: ['speaking','🔊'], loading: [null,'⏳'], idle: [null,'🎙️'] };
-  const [cls, icon] = map[state] || [null,'🎙️'];
+  // idle when autoMode = show pause icon (tap to pause); idle when !autoMode = play icon
+  const idleIcon = autoMode ? '⏸️' : '▶️';
+  const map = { listening: ['listening','🔴'], speaking: ['speaking','🔊'], loading: [null,'⏳'], idle: [null, idleIcon] };
+  const [cls, icon] = map[state] || [null, idleIcon];
   if (cls) btn.classList.add(cls);
   if (state === 'loading') btn.disabled = true;
   btn.textContent = icon;
