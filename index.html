@@ -178,6 +178,37 @@
     .login-user-card .user-name { font-size: 1rem; color: var(--text); }
     .login-user-card .user-email { font-size: 0.75rem; color: var(--muted); }
 
+    /* Setup screen — account card (shown after Google login) */
+    .setup-account-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid rgba(46,204,113,0.35);
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.2rem;
+    }
+    .setup-account-card img {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 2px solid rgba(46,204,113,0.5);
+      flex-shrink: 0;
+    }
+    .setup-account-info { flex: 1; text-align: left; }
+    .setup-account-name { font-size: 0.95rem; color: var(--text); font-weight: bold; }
+    .setup-account-email { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+    .setup-account-dot {
+      font-size: 0.68rem; color: var(--green);
+      background: rgba(46,204,113,0.12);
+      border: 1px solid rgba(46,204,113,0.3);
+      border-radius: 10px;
+      padding: 0.2rem 0.55rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     /* ── SESSION ── */
     #session { max-width: 700px; margin: 0 auto; width: 100%; }
     .session-bar {
@@ -571,14 +602,21 @@
 <div id="setup" class="screen centered-screen">
   <div class="setup-icon">🕊️</div>
   <h1 class="screen-title" id="setup-title">Sophia</h1>
-  <p class="tagline">Configure suas credenciais para começar a jornada.</p>
+  <p class="tagline" id="setup-tagline">Configure suas credenciais para começar a jornada.</p>
 
-  <!-- Chip do usuário logado (se vier do login Google) -->
-  <div id="setup-user-badge" style="display:none;margin-bottom:1rem">
-    <div class="login-status" style="max-width:420px">
-      <div class="status-dot online"></div>
-      <span style="font-size:0.82rem;color:var(--green)" id="setup-user-badge-text"></span>
+  <!-- Card da conta Google (visível apenas quando logado via Google) -->
+  <div id="setup-user-badge" style="display:none">
+    <div class="setup-account-card">
+      <img id="setup-account-avatar" src="" alt="" />
+      <div class="setup-account-info">
+        <div class="setup-account-name" id="setup-account-name"></div>
+        <div class="setup-account-email" id="setup-account-email"></div>
+      </div>
+      <span class="setup-account-dot">● Google</span>
     </div>
+    <p style="font-size:0.73rem;color:var(--muted);text-align:center;margin-bottom:0.8rem">
+      Suas configurações ficam salvas nesta conta — acesse de qualquer dispositivo.
+    </p>
   </div>
 
   <div class="setup-card">
@@ -1110,14 +1148,20 @@ function handleGoogleCredential(response) {
 }
 
 function showSetupAfterLogin(firstName) {
-  // Mostra badge de usuário logado no setup
-  const badge = document.getElementById('setup-user-badge');
-  const text  = document.getElementById('setup-user-badge-text');
-  if (badge && text) {
-    text.textContent = `Logado como ${currentGoogleUser?.name} (${currentGoogleUser?.email})`;
-    badge.style.display = 'block';
+  // Popula card de conta Google
+  if (currentGoogleUser) {
+    const badge   = document.getElementById('setup-user-badge');
+    const avatar  = document.getElementById('setup-account-avatar');
+    const name    = document.getElementById('setup-account-name');
+    const email   = document.getElementById('setup-account-email');
+    const tagline = document.getElementById('setup-tagline');
+    if (badge)   { badge.style.display = 'block'; }
+    if (avatar)  { avatar.src = currentGoogleUser.picture || ''; }
+    if (name)    { name.textContent = currentGoogleUser.name || ''; }
+    if (email)   { email.textContent = currentGoogleUser.email || ''; }
+    if (tagline) { tagline.textContent = 'Configure como a Sophia vai te chamar e informe sua chave de acesso.'; }
   }
-  // Pré-preenche nome
+  // Pré-preenche nome com first name
   const nicknameInput = document.getElementById('nickname-input');
   if (nicknameInput && !nicknameInput.value) nicknameInput.value = firstName || '';
   show('setup');
