@@ -1587,13 +1587,17 @@ async function startConversation() {
     speak(opening);
   } catch (e) {
     removeTyping();
-    setStatus(`Erro: ${e.message}`);
     setMicState('idle');
-    // Reexibe botão de início em caso de erro
+    const errorMsg = e.message || 'Erro desconhecido';
+    setStatus(`Erro: ${errorMsg}`);
+    // Reexibe botão de início com o erro real visível
     const msgsEl = document.getElementById('messages');
     if (msgsEl) msgsEl.innerHTML = `
       <div id="start-area">
-        <p style="color:var(--red)">Erro ao conectar. Verifique sua API key.</p>
+        <p style="color:var(--red);font-size:0.9rem;max-width:340px;text-align:center">⚠️ ${errorMsg}</p>
+        <p style="color:var(--muted);font-size:0.8rem;max-width:340px;text-align:center;margin-top:0.5rem">
+          Se o erro mencionar o modelo ou 404, vá em <strong>Config → Credenciais</strong> e reconecte a chave.
+        </p>
         <button class="btn-start" onclick="startConversation()">↩ Tentar novamente</button>
       </div>`;
     if (micBtn) micBtn.style.visibility = 'hidden';
@@ -1644,7 +1648,7 @@ async function callClaude() {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model:      'claude-sonnet-4-6',
+      model:      'claude-3-5-haiku-20241022',
       max_tokens: 1024,
       system:     buildSystem(),
       messages,
@@ -2221,7 +2225,7 @@ async function endSession() {
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
+        model:      'claude-3-5-haiku-20241022',
         max_tokens: 600,
         system:     buildSystem(),
         messages: [{
