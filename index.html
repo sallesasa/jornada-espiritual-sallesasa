@@ -98,6 +98,32 @@
       transition: opacity 0.2s;
     }
     .btn-primary:hover { opacity: 0.88; }
+    .btn-start {
+      background: linear-gradient(135deg, var(--sophia-d), var(--primary));
+      border: none;
+      border-radius: 50px;
+      color: #fff;
+      font-family: Georgia, serif;
+      font-size: 1.1rem;
+      padding: 1rem 2.5rem;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-start:hover { opacity: 0.88; transform: scale(1.03); }
+    #start-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 1.2rem;
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
     .btn-secondary {
       width: 100%;
       background: transparent;
@@ -679,9 +705,7 @@
     <button id="mic-btn" onclick="toggleMic()">🎙️</button>
     <div id="status">Toque para falar</div>
     <div class="voice-row">
-      <button class="btn-sm" id="stop-btn" onclick="stopSpeech()">⏹ Interromper Sophia</button>
-      <button class="btn-sm" onclick="endSession()">✨ Gerar reflexão</button>
-      <button class="btn-sm" onclick="manualSync()">☁️ Sincronizar</button>
+      <button class="btn-sm" id="stop-btn" onclick="endSession()">⏹ Interromper conversa</button>
       <button class="btn-sm" onclick="clearAll()">🔑 Sair</button>
     </div>
   </div>
@@ -1323,20 +1347,36 @@ function clearAll() {
 // ══════════════════════════════════════════════════
 //  SESSION INIT
 // ══════════════════════════════════════════════════
-async function initSession() {
+function initSession() {
   show('session');
   messages = [];
-  document.getElementById('messages').innerHTML = '';
+
+  const msgsEl = document.getElementById('messages');
+  msgsEl.innerHTML = `
+    <div id="start-area">
+      <p>${ASSISTANT_NAME} está pronta para sua jornada.<br>Quando quiser começar, clique abaixo.</p>
+      <button class="btn-start" onclick="startConversation()">✨ Iniciar conversa</button>
+    </div>`;
 
   const now = new Date();
   document.getElementById('session-date').textContent =
     now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  setStatus(`${ASSISTANT_NAME} está se preparando…`);
-  setMicState('loading');
+  // Esconde mic até iniciar conversa
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn) micBtn.style.visibility = 'hidden';
+
+  setStatus(`Clique em "Iniciar conversa" para começar`);
+  setMicState('idle');
+}
+
+async function startConversation() {
+  // Limpa área de início e mostra mic
+  document.getElementById('messages').innerHTML = '';
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn) micBtn.style.visibility = '';
 
   const sessionN = getSessions().length + 1;
-  const insights = getInsights();
 
   const openInstruction = sessionN === 1
     ? `Cumprimente ${userName} acolhedoramente. Apresente-se como ${ASSISTANT_NAME}. Faça uma única pergunta inicial profunda sobre o que o traz a essa busca — o que ele sente que falta, o que o inquieta. Seja direta, não genérica.`
@@ -1344,6 +1384,8 @@ async function initSession() {
 
   messages = [{ role: 'user', content: `[instrução de abertura: ${openInstruction}]` }];
 
+  setStatus(`${ASSISTANT_NAME} está se preparando…`);
+  setMicState('loading');
   showTyping();
   try {
     const opening = await callClaude();
@@ -1358,6 +1400,14 @@ async function initSession() {
     removeTyping();
     setStatus(`Erro: ${e.message}`);
     setMicState('idle');
+    // Reexibe botão de início em caso de erro
+    const msgsEl = document.getElementById('messages');
+    if (msgsEl) msgsEl.innerHTML = `
+      <div id="start-area">
+        <p style="color:var(--red)">Erro ao conectar. Verifique sua API key.</p>
+        <button class="btn-start" onclick="startConversation()">↩ Tentar novamente</button>
+      </div>`;
+    if (micBtn) micBtn.style.visibility = 'hidden';
   }
 }
 
@@ -1800,8 +1850,6 @@ function updateAssistantNameUI() {
   });
   const sessionTitle = document.getElementById('session-title');
   if (sessionTitle) sessionTitle.textContent = `🕊️ ${n}`;
-  const stopBtn = document.getElementById('stop-btn');
-  if (stopBtn) stopBtn.textContent = `⏹ Interromper ${n}`;
 }
 
 // ══════════════════════════════════════════════════
@@ -1877,7 +1925,14 @@ function startInactivityTimer() {
       utt.lang  = 'pt-BR'; utt.rate = VOICE_RATE; utt.pitch = VOICE_PITCH;
       const v = getBestVoice();
       if (v) utt.voice = v;
-      utt.onend = () => { setMicState('idle'); setStatus('Em pausa — toque ▶ para retomar'); };
+      utt.onend = () => {
+        setMicState('idle');
+        setStatus('Em pausa — toque ▶ para retomar');
+        // Sync automático após despedida por inatividade
+        if (ghToken) {
+          (async () => { try { if (!gistId) await findOrCreateGist(); await saveToGist(); } catch (err) { console.warn('Auto-sync inatividade:', err); } })();
+        }
+      };
       synth.speak(utt);
       setMicState('speaking');
     }
