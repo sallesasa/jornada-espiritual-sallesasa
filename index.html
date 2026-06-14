@@ -730,7 +730,13 @@
     <div class="setting-row">
       <div class="setting-label">
         GitHub Token
-        <small>Para sincronizar histórico entre dispositivos (opcional).</small>
+        <small>
+          Para sincronizar histórico e credenciais entre dispositivos (opcional).<br>
+          <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App"
+             target="_blank" style="color:var(--sophia)">
+            → Criar token gratuito com escopo "gist" em github.com/settings/tokens
+          </a>
+        </small>
       </div>
       <div class="setting-control">
         <input type="password" id="cfg-gh-token" placeholder="github_pat_…" />
@@ -1588,12 +1594,21 @@ function getBestVoice() {
 function populateVoiceSelect() {
   const sel = document.getElementById('cfg-voice-select');
   if (!sel) return;
-  const voices = synth.getVoices().filter(v => v.lang.startsWith('pt'));
-  if (!voices.length) return;
+  const allVoices = synth.getVoices();
+  if (!allVoices.length) return;
   const saved = store.get('voice') || (getBestVoice()?.name ?? '');
-  sel.innerHTML = voices.map(v =>
-    `<option value="${v.name}" ${v.name === saved ? 'selected' : ''}>${v.name}</option>`
-  ).join('');
+
+  // Agrupa vozes: primeiro português (pt-BR e pt-PT), depois todas as outras
+  const ptVoices  = allVoices.filter(v => v.lang.startsWith('pt'));
+  const otherVoices = allVoices.filter(v => !v.lang.startsWith('pt'));
+
+  const makeOption = v =>
+    `<option value="${v.name}" ${v.name === saved ? 'selected' : ''}>${v.name} (${v.lang})</option>`;
+
+  const html = [];
+  if (ptVoices.length)    html.push(`<optgroup label="Português">${ptVoices.map(makeOption).join('')}</optgroup>`);
+  if (otherVoices.length) html.push(`<optgroup label="Outros idiomas">${otherVoices.map(makeOption).join('')}</optgroup>`);
+  sel.innerHTML = html.join('');
 }
 
 // ══════════════════════════════════════════════════
@@ -1742,7 +1757,11 @@ function saveSettings() {
 
   const saved = document.getElementById('settings-saved');
   saved.classList.add('show');
-  setTimeout(() => saved.classList.remove('show'), 2500);
+  // Fecha settings automaticamente após 1s e volta para a sessão
+  setTimeout(() => {
+    saved.classList.remove('show');
+    showSession();
+  }, 1000);
 }
 
 function testVoice() {
