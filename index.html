@@ -1169,32 +1169,68 @@ async function ghFetch(path, opts = {}) {
   return resp.json();
 }
 
+async function _createNewGist() {
+  const created = await ghFetch('/gists', {
+    method: 'POST',
+    body: JSON.stringify({
+      description: GIST_DESC,
+      public: false,
+      files: { [GIST_FILE]: { content: JSON.stringify({ sessions: [], insights: '' }, null, 2) } },
+    }),
+  });
+  gistId = created.id;
+  store.set('gist_id', gistId);
+  console.log('[Gist] Novo Gist criado:', gistId);
+}
+
 async function findOrCreateGist() {
   const cached = store.get('gist_id');
-  if (cached) { gistId = cached; return; }
+  if (cached) {
+    // Verifica se o Gist ainda existe (pode ter sido deletado)
+    try {
+      await ghFetch(`/gists/${cached}`);
+      gistId = cached;
+      return;
+    } catch (e) {
+      // Gist deletado ou inacessível — recria
+      console.warn('[Gist] Gist cacheado não encontrado — recriando');
+      store.del('gist_id');
+      gistId = '';
+    }
+  }
+  // Busca entre Gists existentes
   const gists = await ghFetch('/gists?per_page=100');
   const found = gists.find(g => g.description === GIST_DESC);
   if (found) {
     gistId = found.id;
+    store.set('gist_id', gistId);
   } else {
-    const created = await ghFetch('/gists', {
-      method: 'POST',
-      body: JSON.stringify({
-        description: GIST_DESC,
-        public: false,
-        files: { [GIST_FILE]: { content: JSON.stringify({ sessions: [], insights: '' }, null, 2) } },
-      }),
-    });
-    gistId = created.id;
+    await _createNewGist();
   }
-  store.set('gist_id', gistId);
 }
 
 async function loadFromGist() {
-  if (!gistId || !ghToken) return;
+  if (!ghToken) return;
+  // Se não tem gistId, tenta encontrar ou criar
+  if (!gistId) {
+    try { await findOrCreateGist(); } catch (e) { console.warn('findOrCreateGist error', e); return; }
+  }
   setSyncState('syncing');
   try {
-    const data   = await ghFetch(`/gists/${gistId}`);
+    let data;
+    try {
+      data = await ghFetch(`/gists/${gistId}`);
+    } catch (fetchErr) {
+      // Gist não existe mais — recria e salva dados locais
+      console.warn('[Gist] Gist não encontrado (404?) — recriando');
+      store.del('gist_id');
+      gistId = '';
+      await _createNewGist();
+      await saveToGist();
+      setSyncState('synced');
+      return;
+    }
+
     const raw    = data.files[GIST_FILE]?.content;
     if (!raw) { setSyncState('synced'); return; }
     const parsed = JSON.parse(raw);
@@ -1588,17 +1624,42 @@ async function startConversation() {
   } catch (e) {
     removeTyping();
     setMicState('idle');
-    const errorMsg = e.message || 'Erro desconhecido';
-    setStatus(`Erro: ${errorMsg}`);
-    // Reexibe botão de início com o erro real visível
+    const rawMsg = e.message || 'Erro desconhecido';
+
+    // Erros semânticos (sem chave, chave inválida)
+    const isNoKey      = rawMsg === '_NO_KEY_';
+    const isInvalidKey = rawMsg === '_INVALID_KEY_';
+
+    let headline, detail, actions;
+
+    if (isNoKey) {
+      headline = '🔑 Nenhuma chave de IA configurada';
+      detail   = 'Configure sua chave Claude ou Gemini em Credenciais para começar.';
+      actions  = `<button class="btn-start" onclick="showSettings();show('settings')">⚙️ Ir para Credenciais</button>`;
+      setStatus('Sem chave configurada');
+    } else if (isInvalidKey) {
+      headline = '🔑 Chave Claude inválida ou revogada';
+      detail   = 'A chave foi removida automaticamente. Gere uma nova chave em console.anthropic.com e conecte em Credenciais.';
+      actions  = `<button class="btn-start" onclick="showSettings();show('settings')">⚙️ Reconectar chave</button>`;
+      setStatus('Chave inválida — reconecte');
+      // Atualiza dots de credenciais
+      updateCredButtons();
+      updateSettingsDots();
+    } else {
+      headline = `⚠️ ${rawMsg}`;
+      detail   = 'Verifique sua conexão ou acesse Config → Credenciais para reconectar.';
+      actions  = `
+        <button class="btn-start" onclick="startConversation()">↩ Tentar novamente</button>
+        <button class="btn-start" style="margin-top:0.5rem;background:var(--surface2);color:var(--sophia)" onclick="showSettings();show('settings')">⚙️ Credenciais</button>`;
+      setStatus(`Erro: ${rawMsg}`);
+    }
+
     const msgsEl = document.getElementById('messages');
     if (msgsEl) msgsEl.innerHTML = `
-      <div id="start-area">
-        <p style="color:var(--red);font-size:0.9rem;max-width:340px;text-align:center">⚠️ ${errorMsg}</p>
-        <p style="color:var(--muted);font-size:0.8rem;max-width:340px;text-align:center;margin-top:0.5rem">
-          Se o erro mencionar o modelo ou 404, vá em <strong>Config → Credenciais</strong> e reconecte a chave.
-        </p>
-        <button class="btn-start" onclick="startConversation()">↩ Tentar novamente</button>
+      <div id="start-area" style="gap:0.75rem">
+        <p style="color:var(--red);font-size:0.95rem;max-width:340px;text-align:center;font-weight:600">${headline}</p>
+        <p style="color:var(--muted);font-size:0.82rem;max-width:320px;text-align:center;line-height:1.5">${detail}</p>
+        ${actions}
       </div>`;
     if (micBtn) micBtn.style.visibility = 'hidden';
   }
@@ -1639,26 +1700,62 @@ async function callClaude() {
   // Roteamento: usa Gemini se não há Claude key mas há Gemini key
   if (!apiKey && geminiKey) return callGemini();
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type':                        'application/json',
-      'x-api-key':                           apiKey,
-      'anthropic-version':                   '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model:      'claude-3-5-haiku-20241022',
-      max_tokens: 1024,
-      system:     buildSystem(),
-      messages,
-    }),
-  });
-  if (!resp.ok) {
-    const e = await resp.json().catch(() => ({}));
-    throw new Error(e?.error?.message || `HTTP ${resp.status}`);
+  // Sem nenhuma chave configurada
+  if (!apiKey && !geminiKey) throw new Error('_NO_KEY_');
+
+  // Se chegou aqui sem Claude key (mas chegou de algum jeito), usa Gemini
+  if (!apiKey) return callGemini();
+
+  const MODEL = 'claude-sonnet-4-6';
+  console.log('[callClaude] key prefix:', apiKey.slice(0, 12) + '…', 'model:', MODEL);
+
+  let resp;
+  try {
+    resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':                              'application/json',
+        'x-api-key':                                 apiKey.trim(),
+        'anthropic-version':                         '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      MODEL,
+        max_tokens: 1024,
+        system:     buildSystem(),
+        messages,
+      }),
+    });
+  } catch (netErr) {
+    throw new Error(`Falha de rede: ${netErr.message}`);
   }
-  return (await resp.json()).content[0].text;
+
+  if (!resp.ok) {
+    let errBody = {};
+    try { errBody = await resp.json(); } catch {}
+    const msg = errBody?.error?.message || JSON.stringify(errBody).slice(0, 200);
+
+    // Chave inválida ou revogada — limpa e tenta Gemini automaticamente
+    if (resp.status === 401 || (errBody?.error?.type === 'authentication_error')) {
+      console.warn('[callClaude] 401 — chave inválida. Limpando do store.');
+      apiKey = '';
+      store.del('key');
+      // Tenta salvar no Gist sem a chave inválida
+      if (ghToken) saveToGist().catch(() => {});
+      if (geminiKey) {
+        setStatus('Chave Claude inválida — alternando para Gemini automaticamente…');
+        return callGemini();
+      }
+      throw new Error('_INVALID_KEY_');
+    }
+
+    throw new Error(`HTTP ${resp.status}: ${msg}`);
+  }
+
+  const data = await resp.json();
+  const text = data?.content?.[0]?.text;
+  if (!text) throw new Error(`Resposta inesperada da API: ${JSON.stringify(data).slice(0, 200)}`);
+  return text;
 }
 
 async function callGemini() {
