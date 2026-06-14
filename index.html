@@ -638,9 +638,10 @@
 
     <div class="field-group">
       <label>GitHub Token <span style="color:var(--muted);font-weight:normal;font-size:0.7rem">(opcional)</span></label>
-      <input type="password" id="gh-input" placeholder="github_pat_…" autocomplete="off" />
-      <small>
-        Sincroniza histórico entre dispositivos (celular ↔ computador).<br>
+      <input type="password" id="gh-input" placeholder="github_pat_…" autocomplete="off"
+        oninput="onSetupGhTokenInput(this.value)" />
+      <small id="gh-input-hint">
+        Se você configurou em outro dispositivo, cole aqui e suas credenciais serão recuperadas automaticamente.<br>
         <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App" target="_blank">
           → Criar token com escopo "gist"
         </a>
@@ -916,7 +917,9 @@ const GIST_FILE = 'sophia-data.json';
 //  GOOGLE AUTH STATE
 // ══════════════════════════════════════════════════
 let currentGoogleUser = null; // { sub, name, email, picture }
-let GOOGLE_CLIENT_ID  = localStorage.getItem('sophia_google_client_id') || '';
+// Client ID público (não é segredo — identifica o app perante o Google OAuth)
+const _HARDCODED_GID  = '558392959115-j2hunfbpdtl6l9ecnd6mft8j40feh8p9.apps.googleusercontent.com';
+let GOOGLE_CLIENT_ID  = localStorage.getItem('sophia_google_client_id') || _HARDCODED_GID;
 let ASSISTANT_NAME    = 'Sophia';
 let _anonymousMode    = false; // usuário escolheu continuar sem conta
 
@@ -1012,6 +1015,17 @@ async function loadFromGist() {
       store.set('insights', localInsights);
       setTimeout(saveToGist, 500);
     }
+
+    // Carrega credenciais do Gist se não existirem localmente
+    if (parsed.apiKey && !apiKey) {
+      apiKey = parsed.apiKey;
+      store.set('key', apiKey);
+    }
+    if (parsed.nickname && !store.get('name')) {
+      userName = parsed.nickname;
+      store.set('name', userName);
+    }
+
     setSyncState('synced');
   } catch (e) {
     console.warn('Gist load error', e);
@@ -1023,12 +1037,17 @@ async function saveToGist() {
   if (!gistId || !ghToken) return;
   setSyncState('syncing');
   try {
+    const payload = {
+      sessions: getSessions(),
+      insights: getInsights(),
+      // Credenciais sincronizadas (Gist é privado — só acessível com token do usuário)
+      nickname: userName || '',
+      apiKey:   apiKey   || '',
+    };
     await ghFetch(`/gists/${gistId}`, {
       method: 'PATCH',
       body: JSON.stringify({
-        files: { [GIST_FILE]: {
-          content: JSON.stringify({ sessions: getSessions(), insights: getInsights() }, null, 2),
-        }},
+        files: { [GIST_FILE]: { content: JSON.stringify(payload, null, 2) }},
       }),
     });
     setSyncState('synced');
@@ -1184,6 +1203,37 @@ function showSetupAfterLogin(firstName) {
   const nicknameInput = document.getElementById('nickname-input');
   if (nicknameInput && !nicknameInput.value) nicknameInput.value = firstName || '';
   show('setup');
+}
+
+// Auto-carrega credenciais do Gist quando GitHub token é colado no setup
+let _ghTokenDebounce = null;
+async function onSetupGhTokenInput(value) {
+  clearTimeout(_ghTokenDebounce);
+  const hint = document.getElementById('gh-input-hint');
+  if (!value || value.length < 20) return;
+  _ghTokenDebounce = setTimeout(async () => {
+    if (hint) hint.innerHTML = '<span style="color:var(--primary)">🔄 Buscando suas configurações…</span>';
+    try {
+      ghToken = value;
+      gistId  = '';
+      await findOrCreateGist();
+      await loadFromGist();
+      // Preenche campos com o que veio do Gist
+      const keyInput  = document.getElementById('key-input');
+      const nickInput = document.getElementById('nickname-input');
+      if (apiKey  && keyInput  && !keyInput.value)  keyInput.value  = apiKey;
+      if (userName && nickInput && !nickInput.value) nickInput.value = userName;
+      if (apiKey) {
+        if (hint) hint.innerHTML = '<span style="color:var(--green)">✓ Configurações recuperadas! Verifique os campos acima.</span>';
+      } else {
+        if (hint) hint.innerHTML = '<span style="color:var(--muted)">Token válido — histórico será sincronizado.</span>';
+      }
+    } catch (e) {
+      ghToken = '';
+      gistId  = '';
+      if (hint) hint.innerHTML = '<span style="color:var(--red)">Token inválido ou sem acesso a Gists.</span>';
+    }
+  }, 700);
 }
 
 function continueAnonymous() {
@@ -1676,6 +1726,15 @@ function saveSettings() {
   GOOGLE_CLIENT_ID = googleClientId;
 
   updateAssistantNameUI();
+
+  // Sincroniza credenciais atualizadas no Gist (para outros dispositivos carregarem)
+  if (ghToken) {
+    const doSync = async () => {
+      if (!gistId) await findOrCreateGist();
+      await saveToGist();
+    };
+    doSync().catch(console.warn);
+  }
 
   const saved = document.getElementById('settings-saved');
   saved.classList.add('show');
