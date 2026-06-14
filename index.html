@@ -638,6 +638,33 @@
       cursor: pointer;
     }
 
+    /* ── CRED CONNECT/DISCONNECT BUTTONS ── */
+    .cred-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .btn-cred-connect {
+      background: none;
+      border: 1px solid var(--sophia);
+      border-radius: 8px;
+      color: var(--sophia);
+      font-family: Georgia, serif;
+      font-size: 0.78rem;
+      padding: 0.35rem 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-cred-connect:hover { background: var(--sophia); color: #fff; }
+    .btn-cred-disconnect {
+      background: none;
+      border: 1px solid var(--muted);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: Georgia, serif;
+      font-size: 0.78rem;
+      padding: 0.35rem 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-cred-disconnect:hover { background: rgba(231,76,60,0.15); border-color: var(--red); color: var(--red); }
+
     /* ── SPLASH ── */
     @keyframes spin { to { transform: rotate(360deg); } }
     .splash-spinner {
@@ -864,6 +891,9 @@
       <div class="setting-control">
         <input type="password" id="cfg-api-key" placeholder="sk-ant-…"
           oninput="updateSettingsDots()" />
+        <div class="cred-actions">
+          <button id="btn-cred-claude" class="btn-cred-connect" onclick="connectKey('claude')">Conectar</button>
+        </div>
       </div>
     </div>
 
@@ -879,6 +909,9 @@
       <div class="setting-control">
         <input type="password" id="cfg-gemini-key" placeholder="AIza…"
           oninput="updateSettingsDots()" />
+        <div class="cred-actions">
+          <button id="btn-cred-gemini" class="btn-cred-connect" onclick="connectKey('gemini')">Conectar</button>
+        </div>
       </div>
     </div>
 
@@ -894,6 +927,9 @@
       <div class="setting-control">
         <input type="password" id="cfg-gh-token" placeholder="github_pat_…"
           oninput="updateSettingsDots()" />
+        <div class="cred-actions">
+          <button id="btn-cred-github" class="btn-cred-connect" onclick="connectKey('github')">Conectar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1392,12 +1428,15 @@ async function onSetupGhTokenInput(value) {
       await findOrCreateGist();
       await loadFromGist();
       // Preenche campos com o que veio do Gist
-      const keyInput  = document.getElementById('key-input');
-      const nickInput = document.getElementById('nickname-input');
-      if (apiKey  && keyInput  && !keyInput.value)  keyInput.value  = apiKey;
-      if (userName && nickInput && !nickInput.value) nickInput.value = userName;
-      if (apiKey) {
-        if (hint) hint.innerHTML = '<span style="color:var(--green)">✓ Configurações recuperadas! Verifique os campos acima.</span>';
+      const keyInput    = document.getElementById('key-input');
+      const geminiInput = document.getElementById('gemini-input');
+      const nickInput   = document.getElementById('nickname-input');
+      if (apiKey    && keyInput    && !keyInput.value)    keyInput.value    = apiKey;
+      if (geminiKey && geminiInput && !geminiInput.value) geminiInput.value = geminiKey;
+      if (userName  && nickInput   && !nickInput.value)   nickInput.value   = userName;
+      updateSetupDots();
+      if (apiKey || geminiKey) {
+        if (hint) hint.innerHTML = '<span style="color:var(--green)">✓ Chaves recuperadas do servidor! Clique em <strong>Iniciar jornada</strong> abaixo.</span>';
       } else {
         if (hint) hint.innerHTML = '<span style="color:var(--muted)">Token válido — histórico será sincronizado.</span>';
       }
@@ -2355,6 +2394,94 @@ function updateSettingsDots() {
   _setDot('cfg-dot-claude', keyVal.startsWith('sk-'));
   _setDot('cfg-dot-gemini', geminiVal.length > 10);
   _setDot('cfg-dot-gh',    ghVal.length > 10);
+  updateCredButtons();
+}
+
+// ══════════════════════════════════════════════════
+//  CONNECT / DISCONNECT CREDENTIAL BUTTONS
+// ══════════════════════════════════════════════════
+function updateCredButtons() {
+  const hasClaudeKey = !!(apiKey   || store.get('key'));
+  const hasGeminiKey = !!(geminiKey || store.get('gemini_key'));
+  const hasGhToken   = !!(ghToken  || store.get('gh'));
+  _renderCredBtn('btn-cred-claude',  hasClaudeKey, 'claude');
+  _renderCredBtn('btn-cred-gemini',  hasGeminiKey, 'gemini');
+  _renderCredBtn('btn-cred-github',  hasGhToken,   'github');
+}
+
+function _renderCredBtn(id, isConnected, type) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  if (isConnected) {
+    btn.textContent = 'Desconectar';
+    btn.className   = 'btn-cred-disconnect';
+    btn.onclick     = () => disconnectKey(type);
+  } else {
+    btn.textContent = 'Conectar';
+    btn.className   = 'btn-cred-connect';
+    btn.onclick     = () => connectKey(type);
+  }
+}
+
+async function connectKey(type) {
+  if (type === 'claude') {
+    const val = (document.getElementById('cfg-api-key')?.value || '').trim();
+    if (!val.startsWith('sk-')) { alert('Chave Claude inválida — deve começar com sk-ant-'); return; }
+    apiKey = val;
+    store.set('key', apiKey);
+    if (ghToken) { try { await saveToGist(); } catch {} }
+  } else if (type === 'gemini') {
+    const val = (document.getElementById('cfg-gemini-key')?.value || '').trim();
+    if (val.length < 10) { alert('Chave Gemini inválida'); return; }
+    geminiKey = val;
+    store.set('gemini_key', geminiKey);
+    if (ghToken) { try { await saveToGist(); } catch {} }
+  } else if (type === 'github') {
+    const val = (document.getElementById('cfg-gh-token')?.value || '').trim();
+    if (val.length < 20) { alert('Token GitHub inválido'); return; }
+    ghToken = val;
+    gistId  = store.get('gist_id') || '';
+    store.set('gh', ghToken);
+    try {
+      if (!gistId) await findOrCreateGist();
+      store.set('gist_id', gistId);
+      await loadFromGist();
+      // Preenche campos após sync do Gist
+      const k = store.get('key');       const g = store.get('gemini_key');
+      if (k && document.getElementById('cfg-api-key'))   document.getElementById('cfg-api-key').value   = k;
+      if (g && document.getElementById('cfg-gemini-key')) document.getElementById('cfg-gemini-key').value = g;
+      if (k) { apiKey    = k; }
+      if (g) { geminiKey = g; }
+    } catch (e) {
+      console.warn('connectKey github error', e);
+      alert('Erro ao conectar com GitHub. Verifique o token.');
+      ghToken = ''; store.del('gh'); return;
+    }
+  }
+  updateSettingsDots();
+}
+
+function disconnectKey(type) {
+  const labels = { claude: 'Claude API Key', gemini: 'Gemini API Key', github: 'GitHub Token' };
+  if (!confirm(`Desconectar ${labels[type]}?`)) return;
+  if (type === 'claude') {
+    apiKey = '';
+    store.del('key');
+    const el = document.getElementById('cfg-api-key');
+    if (el) el.value = '';
+  } else if (type === 'gemini') {
+    geminiKey = '';
+    store.del('gemini_key');
+    const el = document.getElementById('cfg-gemini-key');
+    if (el) el.value = '';
+  } else if (type === 'github') {
+    ghToken = ''; gistId = '';
+    store.del('gh'); store.del('gist_id');
+    const el = document.getElementById('cfg-gh-token');
+    if (el) el.value = '';
+    setSyncState('idle');
+  }
+  updateSettingsDots();
 }
 
 // ══════════════════════════════════════════════════
