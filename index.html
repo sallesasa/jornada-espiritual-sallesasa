@@ -573,11 +573,31 @@
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--sophia-d); border-radius: 2px; }
+
+    /* ── SPLASH ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .splash-spinner {
+      width: 38px; height: 38px;
+      border: 3px solid var(--border);
+      border-top-color: var(--sophia);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 1.8rem auto 0;
+    }
+    .splash-msg { color: var(--muted); font-size: 0.88rem; margin-top: 0.8rem; }
   </style>
 </head>
 <body>
 
 <div id="sync-dot" title="Status de sincronização"></div>
+
+<!-- ══ SPLASH ══ (exibida durante verificação automática do Google) -->
+<div id="splash" class="screen centered-screen">
+  <div class="setup-icon">🕊️</div>
+  <h1 class="screen-title">Sophia</h1>
+  <div class="splash-spinner"></div>
+  <p class="splash-msg">Verificando conta…</p>
+</div>
 
 <!-- ══ LOGIN ══ (mostrado quando Google Client ID está configurado) -->
 <div id="login" class="screen centered-screen">
@@ -1161,21 +1181,7 @@ function handleGoogleCredential(response) {
   const payload = JSON.parse(atob(b64));
   currentGoogleUser = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
 
-  // Atualiza status na login screen
-  updateLoginStatus('online', `Conectado como ${payload.name.split(' ')[0]}`);
-
-  // Mostra card de usuário conectado
-  const notConn = document.getElementById('login-not-connected');
-  const conn    = document.getElementById('login-connected');
-  if (notConn) notConn.style.display = 'none';
-  if (conn) {
-    conn.style.display = 'block';
-    document.getElementById('login-avatar').src   = payload.picture;
-    document.getElementById('login-user-name').textContent  = payload.name;
-    document.getElementById('login-user-email').textContent = payload.email;
-  }
-
-  // Mostra avatar no header da sessão
+  // Atualiza avatar no header (visível na tela de sessão)
   const chip   = document.getElementById('header-user');
   const avatar = document.getElementById('header-avatar');
   const uname  = document.getElementById('header-uname');
@@ -1192,28 +1198,34 @@ function handleGoogleCredential(response) {
     });
   }
 
-  // Garante que a tela de login esteja visível com o estado "Conectado" por pelo menos 1.8s
-  // (importante no mobile onde auto_select pode disparar antes do usuário ver qualquer tela)
-  show('login');
-  setTimeout(() => {
-    const savedKey = store.get('key');
-    if (savedKey?.startsWith?.('sk-')) {
-      // Chave salva → vai direto para sessão
-      apiKey   = savedKey;
-      ghToken  = store.get('gh') || '';
-      userName = store.get('name') || payload.name.split(' ')[0];
-      gistId   = store.get('gist_id') || '';
-      const doInit = async () => {
-        if (ghToken && !gistId) await findOrCreateGist();
-        if (ghToken) await loadFromGist();
-        initSession();
-      };
-      doInit().catch(console.warn);
-    } else {
-      // Sem chave → vai para setup com nome pré-preenchido
-      showSetupAfterLogin(payload.name.split(' ')[0]);
+  const savedKey = store.get('key');
+  if (savedKey?.startsWith?.('sk-')) {
+    // ── Usuário retornando: vai direto para sessão sem exibir login ──
+    apiKey   = savedKey;
+    ghToken  = store.get('gh') || '';
+    userName = store.get('name') || payload.name.split(' ')[0];
+    gistId   = store.get('gist_id') || '';
+    const doInit = async () => {
+      if (ghToken && !gistId) await findOrCreateGist();
+      if (ghToken) await loadFromGist();
+      initSession();
+    };
+    doInit().catch(console.warn);
+  } else {
+    // ── Usuário novo: mostra tela de login com estado "conectado" → setup ──
+    show('login');
+    updateLoginStatus('online', `Conectado como ${payload.name.split(' ')[0]}`);
+    const notConn = document.getElementById('login-not-connected');
+    const conn    = document.getElementById('login-connected');
+    if (notConn) notConn.style.display = 'none';
+    if (conn) {
+      conn.style.display = 'block';
+      document.getElementById('login-avatar').src   = payload.picture;
+      document.getElementById('login-user-name').textContent  = payload.name;
+      document.getElementById('login-user-email').textContent = payload.email;
     }
-  }, 1800);
+    setTimeout(() => showSetupAfterLogin(payload.name.split(' ')[0]), 1500);
+  }
 }
 
 function showSetupAfterLogin(firstName) {
@@ -1648,17 +1660,21 @@ function populateVoiceSelect() {
   if (!allVoices.length) return;
   const saved = store.get('voice') || (getBestVoice()?.name ?? '');
 
-  // Agrupa vozes: primeiro português (pt-BR e pt-PT), depois todas as outras
-  const ptVoices  = allVoices.filter(v => v.lang.startsWith('pt'));
-  const otherVoices = allVoices.filter(v => !v.lang.startsWith('pt'));
+  // Somente vozes pt-BR (e variante pt_BR usada em alguns sistemas)
+  const ptBR = allVoices.filter(v => v.lang === 'pt-BR' || v.lang === 'pt_BR');
 
   const makeOption = v =>
-    `<option value="${v.name}" ${v.name === saved ? 'selected' : ''}>${v.name} (${v.lang})</option>`;
+    `<option value="${v.name}" ${v.name === saved ? 'selected' : ''}>${v.name}</option>`;
 
-  const html = [];
-  if (ptVoices.length)    html.push(`<optgroup label="Português">${ptVoices.map(makeOption).join('')}</optgroup>`);
-  if (otherVoices.length) html.push(`<optgroup label="Outros idiomas">${otherVoices.map(makeOption).join('')}</optgroup>`);
-  sel.innerHTML = html.join('');
+  if (ptBR.length) {
+    sel.innerHTML = ptBR.map(makeOption).join('');
+  } else {
+    // Fallback: qualquer voz pt se não houver pt-BR
+    const pt = allVoices.filter(v => v.lang.startsWith('pt'));
+    sel.innerHTML = pt.length
+      ? pt.map(makeOption).join('')
+      : `<option value="">Nenhuma voz pt-BR encontrada</option>`;
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -2087,16 +2103,18 @@ window.addEventListener('load', async () => {
 
   if (GOOGLE_CLIENT_ID) {
     // ── Fluxo com Google ──
-    show('login');
-    // Atualiza status na tela de login
-    updateLoginStatus('loading', 'Verificando conta…');
+    // Mostra splash enquanto o auto_select do GSI processa
+    show('splash');
     setTimeout(() => {
       initGoogleAuth();
-      // Se o GSI não auto-selecionar em 2s, mostra "não conectado"
+      // Fallback: se o GSI não auto-selecionar em 3s, exibe tela de login manual
       setTimeout(() => {
-        if (!currentGoogleUser) updateLoginStatus('offline', 'Não conectado');
-      }, 2000);
-    }, 800);
+        if (!currentGoogleUser) {
+          updateLoginStatus('offline', 'Não conectado');
+          show('login');
+        }
+      }, 3000);
+    }, 200);
   } else {
     // ── Fluxo anônimo ──
     const savedKey  = store.get('key');
