@@ -574,6 +574,70 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--sophia-d); border-radius: 2px; }
 
+    /* ── KEY STATUS DOTS ── */
+    .key-label-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-bottom: 0.25rem;
+    }
+    .key-label-row label { margin: 0; font-weight: 600; font-size: 0.88rem; }
+    .key-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--red);
+      transition: background 0.3s;
+    }
+    .key-dot.ok { background: var(--green); }
+    .help-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.7rem;
+      line-height: 1;
+      padding: 1px 5px;
+      transition: color 0.2s, border-color 0.2s;
+      margin-left: auto;
+    }
+    .help-btn:hover { color: var(--sophia); border-color: var(--sophia); }
+
+    /* ── HELP POPUP ── */
+    #help-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    #help-overlay.open { display: flex; }
+    #help-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.6rem;
+      max-width: 400px;
+      width: 100%;
+      position: relative;
+    }
+    #help-card h3 { color: var(--primary); font-size: 1rem; margin-bottom: 0.9rem; }
+    #help-card p { color: var(--text); font-size: 0.88rem; line-height: 1.7; margin-bottom: 0.8rem; }
+    #help-card ol { color: var(--text); font-size: 0.85rem; line-height: 1.8; padding-left: 1.2rem; margin-bottom: 1rem; }
+    #help-card a { color: var(--sophia); text-decoration: none; }
+    #help-card a:hover { text-decoration: underline; }
+    .help-close {
+      position: absolute;
+      top: 0.8rem; right: 0.9rem;
+      background: none; border: none;
+      color: var(--muted); font-size: 1.1rem;
+      cursor: pointer;
+    }
+
     /* ── SPLASH ── */
     @keyframes spin { to { transform: rotate(360deg); } }
     .splash-spinner {
@@ -590,6 +654,15 @@
 <body>
 
 <div id="sync-dot" title="Status de sincronização"></div>
+
+<!-- ══ HELP POPUP ══ -->
+<div id="help-overlay" onclick="closeHelp(event)">
+  <div id="help-card">
+    <button class="help-close" onclick="closeHelp()">✕</button>
+    <h3 id="help-title"></h3>
+    <div id="help-body"></div>
+  </div>
+</div>
 
 <!-- ══ SPLASH ══ (exibida durante verificação automática do Google) -->
 <div id="splash" class="screen centered-screen">
@@ -675,21 +748,39 @@
     </div>
 
     <div class="field-group">
-      <label>Claude API Key</label>
-      <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off" />
-      <small>Salva apenas neste dispositivo. Nunca enviada a servidores externos.
-        <a href="https://console.anthropic.com/settings/keys" target="_blank">→ Obter chave aqui</a>
-      </small>
+      <div class="key-label-row">
+        <span class="key-dot" id="setup-dot-claude"></span>
+        <label>Claude API Key</label>
+        <button class="help-btn" onclick="openHelp('claude')">?</button>
+      </div>
+      <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off"
+        oninput="updateSetupDots()" />
+      <small>Chave paga — <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></small>
     </div>
 
     <div class="field-group">
-      <label>GitHub Token <span style="color:var(--muted);font-weight:normal;font-size:0.7rem">(opcional)</span></label>
+      <div class="key-label-row">
+        <span class="key-dot" id="setup-dot-gemini"></span>
+        <label>Gemini API Key <span style="color:var(--green);font-size:0.7rem;font-weight:normal">(gratuita)</span></label>
+        <button class="help-btn" onclick="openHelp('gemini')">?</button>
+      </div>
+      <input type="password" id="gemini-input" placeholder="AIza…" autocomplete="off"
+        oninput="updateSetupDots()" />
+      <small>Alternativa gratuita — <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a></small>
+    </div>
+
+    <div class="field-group">
+      <div class="key-label-row">
+        <span class="key-dot" id="setup-dot-gh"></span>
+        <label>GitHub Token <span style="color:var(--muted);font-weight:normal;font-size:0.7rem">(opcional)</span></label>
+        <button class="help-btn" onclick="openHelp('github')">?</button>
+      </div>
       <input type="password" id="gh-input" placeholder="github_pat_…" autocomplete="off"
-        oninput="onSetupGhTokenInput(this.value)" />
+        oninput="onSetupGhTokenInput(this.value); updateSetupDots()" />
       <small id="gh-input-hint">
-        Se você configurou em outro dispositivo, cole aqui e suas credenciais serão recuperadas automaticamente.<br>
+        Sincroniza chaves e histórico entre dispositivos — gratuito.<br>
         <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App" target="_blank">
-          → Criar token com escopo "gist"
+          → Criar token no GitHub
         </a>
       </small>
     </div>
@@ -763,27 +854,46 @@
 
     <div class="setting-row">
       <div class="setting-label">
-        Claude API Key
-        <small>Chave de acesso à IA. Salva localmente por conta.</small>
+        <div class="key-label-row">
+          <span class="key-dot" id="cfg-dot-claude"></span>
+          <label style="font-size:inherit;font-weight:inherit">Claude API Key</label>
+          <button class="help-btn" onclick="openHelp('claude')">?</button>
+        </div>
+        <small>Chave paga da Anthropic.</small>
       </div>
       <div class="setting-control">
-        <input type="password" id="cfg-api-key" placeholder="sk-ant-…" />
+        <input type="password" id="cfg-api-key" placeholder="sk-ant-…"
+          oninput="updateSettingsDots()" />
       </div>
     </div>
 
     <div class="setting-row">
       <div class="setting-label">
-        GitHub Token
-        <small>
-          Para sincronizar histórico e credenciais entre dispositivos (opcional).<br>
-          <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App"
-             target="_blank" style="color:var(--sophia)">
-            → Criar token gratuito com escopo "gist" em github.com/settings/tokens
-          </a>
-        </small>
+        <div class="key-label-row">
+          <span class="key-dot" id="cfg-dot-gemini"></span>
+          <label style="font-size:inherit;font-weight:inherit">Gemini API Key <span style="color:var(--green);font-size:0.7rem">(gratuita)</span></label>
+          <button class="help-btn" onclick="openHelp('gemini')">?</button>
+        </div>
+        <small>Alternativa gratuita ao Claude.</small>
       </div>
       <div class="setting-control">
-        <input type="password" id="cfg-gh-token" placeholder="github_pat_…" />
+        <input type="password" id="cfg-gemini-key" placeholder="AIza…"
+          oninput="updateSettingsDots()" />
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">
+        <div class="key-label-row">
+          <span class="key-dot" id="cfg-dot-gh"></span>
+          <label style="font-size:inherit;font-weight:inherit">GitHub Token</label>
+          <button class="help-btn" onclick="openHelp('github')">?</button>
+        </div>
+        <small>Sincroniza chaves e histórico entre dispositivos (opcional).</small>
+      </div>
+      <div class="setting-control">
+        <input type="password" id="cfg-gh-token" placeholder="github_pat_…"
+          oninput="updateSettingsDots()" />
       </div>
     </div>
   </div>
@@ -942,6 +1052,7 @@
 //  STATE
 // ══════════════════════════════════════════════════
 let apiKey      = '';
+let geminiKey   = '';
 let ghToken     = '';
 let gistId      = '';
 let userName    = 'Viajante';   // como Sophia chama o usuário
@@ -1071,6 +1182,10 @@ async function loadFromGist() {
       apiKey = parsed.apiKey;
       store.set('key', apiKey);
     }
+    if (parsed.geminiKey && !geminiKey) {
+      geminiKey = parsed.geminiKey;
+      store.set('gemini_key', geminiKey);
+    }
     if (parsed.nickname && !store.get('name')) {
       userName = parsed.nickname;
       store.set('name', userName);
@@ -1088,11 +1203,12 @@ async function saveToGist() {
   setSyncState('syncing');
   try {
     const payload = {
-      sessions: getSessions(),
-      insights: getInsights(),
+      sessions:  getSessions(),
+      insights:  getInsights(),
       // Credenciais sincronizadas (Gist é privado — só acessível com token do usuário)
-      nickname: userName || '',
-      apiKey:   apiKey   || '',
+      nickname:  userName    || '',
+      apiKey:    apiKey      || '',
+      geminiKey: geminiKey   || '',
     };
     await ghFetch(`/gists/${gistId}`, {
       method: 'PATCH',
@@ -1136,6 +1252,16 @@ function show(id) {
     // Pré-preenche nome se ainda vazio
     const ni = document.getElementById('nickname-input');
     if (ni && !ni.value) ni.value = (currentGoogleUser.name || '').split(' ')[0];
+  }
+  if (id === 'setup') {
+    // Pré-preenche campos de chave se já existirem no store e atualiza dots
+    const ki = document.getElementById('key-input');
+    const gi = document.getElementById('gemini-input');
+    const ghi = document.getElementById('gh-input');
+    if (ki  && !ki.value)  ki.value  = store.get('key')       || '';
+    if (gi  && !gi.value)  gi.value  = store.get('gemini_key') || '';
+    if (ghi && !ghi.value) ghi.value = store.get('gh')        || '';
+    setTimeout(updateSetupDots, 0);
   }
 }
 function showSession()  { show('session'); }
@@ -1198,13 +1324,15 @@ function handleGoogleCredential(response) {
     });
   }
 
-  const savedKey = store.get('key');
-  if (savedKey?.startsWith?.('sk-')) {
+  const savedKey    = store.get('key');
+  const savedGemini = store.get('gemini_key');
+  if (savedKey?.startsWith?.('sk-') || savedGemini) {
     // ── Usuário retornando: vai direto para sessão sem exibir login ──
-    apiKey   = savedKey;
-    ghToken  = store.get('gh') || '';
-    userName = store.get('name') || payload.name.split(' ')[0];
-    gistId   = store.get('gist_id') || '';
+    apiKey    = savedKey    || '';
+    geminiKey = savedGemini || '';
+    ghToken   = store.get('gh') || '';
+    userName  = store.get('name') || payload.name.split(' ')[0];
+    gistId    = store.get('gist_id') || '';
     const doInit = async () => {
       if (ghToken && !gistId) await findOrCreateGist();
       if (ghToken) await loadFromGist();
@@ -1301,22 +1429,28 @@ function loginSwitchAccount() {
 //  SETUP (primeira configuração / anônimo)
 // ══════════════════════════════════════════════════
 async function startJourney() {
-  const nickname = document.getElementById('nickname-input').value.trim();
-  const key      = document.getElementById('key-input').value.trim();
-  const gh       = document.getElementById('gh-input').value.trim();
-  const err      = document.getElementById('setup-error');
+  const nickname  = document.getElementById('nickname-input').value.trim();
+  const key       = document.getElementById('key-input').value.trim();
+  const gKey      = document.getElementById('gemini-input').value.trim();
+  const gh        = document.getElementById('gh-input').value.trim();
+  const err       = document.getElementById('setup-error');
 
-  if (!key.startsWith('sk-')) {
-    err.textContent = 'Claude API Key inválida — deve começar com sk-';
+  const hasClaudeKey = key.startsWith('sk-');
+  const hasGeminiKey = gKey.startsWith('AIza') || (gKey.length > 20 && !gKey.startsWith('sk-'));
+
+  if (!hasClaudeKey && !hasGeminiKey) {
+    err.textContent = 'Configure pelo menos uma chave de IA: Claude (sk-ant-…) ou Gemini (AIza…)';
     return;
   }
   err.textContent = '';
 
-  apiKey   = key;
-  ghToken  = gh;
-  userName = nickname || (currentGoogleUser ? currentGoogleUser.name.split(' ')[0] : 'Viajante');
+  apiKey    = hasClaudeKey ? key  : '';
+  geminiKey = hasGeminiKey ? gKey : '';
+  ghToken   = gh;
+  userName  = nickname || (currentGoogleUser ? currentGoogleUser.name.split(' ')[0] : 'Viajante');
 
-  store.set('key',  key);
+  if (apiKey)    store.set('key',       apiKey);
+  if (geminiKey) store.set('gemini_key', geminiKey);
   store.set('gh',   gh);
   store.set('name', userName);
 
@@ -1455,6 +1589,9 @@ Sessão atual: nº ${sessionN}.`;
 }
 
 async function callClaude() {
+  // Roteamento: usa Gemini se não há Claude key mas há Gemini key
+  if (!apiKey && geminiKey) return callGemini();
+
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -1475,6 +1612,42 @@ async function callClaude() {
     throw new Error(e?.error?.message || `HTTP ${resp.status}`);
   }
   return (await resp.json()).content[0].text;
+}
+
+async function callGemini() {
+  // Converte messages para formato Gemini (role: user/model)
+  const contents = messages
+    .filter(m => m.content && m.content !== '[início da sessão]')
+    .map(m => ({
+      role:  m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+  // Gemini exige que o primeiro turno seja 'user'
+  if (!contents.length || contents[0].role !== 'user') {
+    contents.unshift({ role: 'user', parts: [{ text: '(início da sessão)' }] });
+  }
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: buildSystem() }] },
+        contents,
+        generationConfig: { maxOutputTokens: 1024 },
+      }),
+    }
+  );
+  if (!resp.ok) {
+    const e = await resp.json().catch(() => ({}));
+    throw new Error(e?.error?.message || `Gemini HTTP ${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.promptFeedback?.blockReason) throw new Error(`Gemini bloqueou: ${data.promptFeedback.blockReason}`);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Gemini retornou resposta vazia');
+  return text;
 }
 
 // ══════════════════════════════════════════════════
@@ -1691,8 +1864,9 @@ function loadSettingsDefaults() {
   const assistantName = cfg.assistantName ?? 'Sophia';
   const googleClientId = localStorage.getItem('sophia_google_client_id') || GOOGLE_CLIENT_ID || '';
   const savedNickname  = store.get('name') || userName;
-  const savedApiKey    = store.get('key') || '';
-  const savedGhToken   = store.get('gh') || '';
+  const savedApiKey    = store.get('key')       || '';
+  const savedGeminiKey = store.get('gemini_key') || '';
+  const savedGhToken   = store.get('gh')        || '';
 
   SILENCE_MS    = Math.round(silence * 1000);
   KEYWORD_RE    = buildKeywordRE(keywords);
@@ -1717,7 +1891,9 @@ function loadSettingsDefaults() {
   if (s('cfg-google-client-id')) s('cfg-google-client-id').value = googleClientId;
   if (s('cfg-nickname'))       s('cfg-nickname').value       = savedNickname;
   if (s('cfg-api-key'))        s('cfg-api-key').value        = savedApiKey;
+  if (s('cfg-gemini-key'))     s('cfg-gemini-key').value     = savedGeminiKey;
   if (s('cfg-gh-token'))       s('cfg-gh-token').value       = savedGhToken;
+  updateSettingsDots();
 }
 
 function renderSettingsAccountArea() {
@@ -1776,6 +1952,7 @@ function saveSettings() {
   const googleClientId = (document.getElementById('cfg-google-client-id').value.trim() || '');
   const nickname       = (document.getElementById('cfg-nickname').value.trim() || userName);
   const newApiKey      = document.getElementById('cfg-api-key').value.trim();
+  const newGeminiKey   = document.getElementById('cfg-gemini-key').value.trim();
   const newGhToken     = document.getElementById('cfg-gh-token').value.trim();
 
   // Salva config geral
@@ -1786,6 +1963,10 @@ function saveSettings() {
   if (newApiKey.startsWith('sk-')) {
     store.set('key', newApiKey);
     apiKey = newApiKey;
+  }
+  if (newGeminiKey) {
+    store.set('gemini_key', newGeminiKey);
+    geminiKey = newGeminiKey;
   }
   if (newGhToken) {
     store.set('gh', newGhToken);
@@ -2090,6 +2271,88 @@ function setMicState(state) {
 }
 
 // ══════════════════════════════════════════════════
+//  HELP POPUP
+// ══════════════════════════════════════════════════
+const HELP_CONTENT = {
+  claude: {
+    title: '🤖 Claude API Key',
+    body: `
+      <p>A chave Claude dá acesso à IA da Anthropic — modelo mais avançado, mas requer assinatura paga.</p>
+      <ol>
+        <li>Acesse <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com/settings/keys</a></li>
+        <li>Clique em <strong>Create Key</strong></li>
+        <li>Copie a chave (começa com <code>sk-ant-</code>)</li>
+        <li>Cole aqui e salve</li>
+      </ol>
+      <p style="color:var(--muted);font-size:0.8rem">A chave é salva localmente e sincronizada de forma privada via GitHub Gist.</p>
+    `,
+  },
+  gemini: {
+    title: '✨ Gemini API Key (gratuita)',
+    body: `
+      <p>A chave Gemini é <strong>completamente gratuita</strong> para uso pessoal e dá acesso aos modelos de IA do Google.</p>
+      <ol>
+        <li>Acesse <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></li>
+        <li>Clique em <strong>Create API key</strong></li>
+        <li>Copie a chave (começa com <code>AIza</code>)</li>
+        <li>Cole aqui e salve</li>
+      </ol>
+      <p style="color:var(--muted);font-size:0.8rem">Alternativa gratuita ao Claude. Use se não tiver conta Anthropic.</p>
+    `,
+  },
+  github: {
+    title: '🔗 GitHub Token',
+    body: `
+      <p>O token GitHub sincroniza suas chaves e histórico entre dispositivos de forma privada e gratuita.</p>
+      <ol>
+        <li>Acesse <a href="https://github.com/settings/tokens/new?scopes=gist&description=Sophia-App" target="_blank">github.com/settings/tokens</a></li>
+        <li>Selecione o escopo <strong>gist</strong> (apenas)</li>
+        <li>Clique em <strong>Generate token</strong></li>
+        <li>Copie o token (começa com <code>github_pat_</code>)</li>
+        <li>Cole aqui e salve</li>
+      </ol>
+      <p style="color:var(--muted);font-size:0.8rem">O token cria um Gist privado — só você tem acesso. Gratuito e sem limite de uso.</p>
+    `,
+  },
+};
+
+function openHelp(type) {
+  const c = HELP_CONTENT[type];
+  if (!c) return;
+  document.getElementById('help-title').textContent = c.title;
+  document.getElementById('help-body').innerHTML   = c.body;
+  document.getElementById('help-overlay').classList.add('open');
+}
+function closeHelp(e) {
+  if (e && e.target !== document.getElementById('help-overlay')) return;
+  document.getElementById('help-overlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════
+//  KEY STATUS DOTS
+// ══════════════════════════════════════════════════
+function _setDot(id, ok) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('ok', ok);
+}
+function updateSetupDots() {
+  const keyVal    = (document.getElementById('key-input')?.value    || store.get('key')       || '').trim();
+  const geminiVal = (document.getElementById('gemini-input')?.value || store.get('gemini_key') || '').trim();
+  const ghVal     = (document.getElementById('gh-input')?.value     || store.get('gh')        || '').trim();
+  _setDot('setup-dot-claude', keyVal.startsWith('sk-'));
+  _setDot('setup-dot-gemini', geminiVal.length > 10);
+  _setDot('setup-dot-gh',    ghVal.length > 10);
+}
+function updateSettingsDots() {
+  const keyVal    = (document.getElementById('cfg-api-key')?.value   || store.get('key')       || '').trim();
+  const geminiVal = (document.getElementById('cfg-gemini-key')?.value || store.get('gemini_key') || '').trim();
+  const ghVal     = (document.getElementById('cfg-gh-token')?.value   || store.get('gh')        || '').trim();
+  _setDot('cfg-dot-claude', keyVal.startsWith('sk-'));
+  _setDot('cfg-dot-gemini', geminiVal.length > 10);
+  _setDot('cfg-dot-gh',    ghVal.length > 10);
+}
+
+// ══════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════
 window.addEventListener('load', async () => {
@@ -2119,14 +2382,16 @@ window.addEventListener('load', async () => {
     // ── Fluxo anônimo ──
     const savedKey  = store.get('key');
     const savedGh   = store.get('gh');
-    const savedName = store.get('name');
-    const savedGist = store.get('gist_id');
+    const savedName    = store.get('name');
+    const savedGist    = store.get('gist_id');
+    const savedGemini  = store.get('gemini_key');
 
-    if (savedKey?.startsWith('sk-')) {
-      apiKey   = savedKey;
-      ghToken  = savedGh  || '';
-      userName = savedName || 'Viajante';
-      gistId   = savedGist || '';
+    if (savedKey?.startsWith('sk-') || savedGemini) {
+      apiKey    = savedKey    || '';
+      geminiKey = savedGemini || '';
+      ghToken   = savedGh     || '';
+      userName  = savedName   || 'Viajante';
+      gistId    = savedGist   || '';
 
       if (ghToken) {
         setSyncState('syncing');
