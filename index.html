@@ -1306,6 +1306,8 @@ function handleGoogleCredential(response) {
   const b64 = raw.padEnd(raw.length + (4 - raw.length % 4) % 4, '=');
   const payload = JSON.parse(atob(b64));
   currentGoogleUser = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
+  // Persiste perfil Google no localStorage — garante restauração sem GSI (ex: Android Chrome fechado/reaberto)
+  try { localStorage.setItem('sophia_last_user', JSON.stringify(currentGoogleUser)); } catch {}
 
   // Atualiza avatar no header (visível na tela de sessão)
   const chip   = document.getElementById('header-user');
@@ -1414,6 +1416,7 @@ function continueAnonymous() {
 }
 
 function loginSwitchAccount() {
+  try { localStorage.removeItem('sophia_last_user'); } catch {}
   if (typeof google !== 'undefined' && google?.accounts) {
     google.accounts.id.disableAutoSelect();
     currentGoogleUser = null;
@@ -1474,6 +1477,7 @@ async function startJourney() {
 function clearAll() {
   if (!confirm('Sair e remover dados deste dispositivo?')) return;
   ['key','gh','name','gist_id'].forEach(k => store.del(k));
+  try { localStorage.removeItem('sophia_last_user'); } catch {}
   apiKey = ghToken = gistId = userName = '';
   currentGoogleUser = null;
   document.getElementById('header-user').style.display = 'none';
@@ -2054,6 +2058,7 @@ function updateAssistantNameUI() {
 // ══════════════════════════════════════════════════
 function signOutGoogle() {
   if (!confirm(`Sair da conta ${currentGoogleUser?.name}?`)) return;
+  try { localStorage.removeItem('sophia_last_user'); } catch {}
   if (typeof google !== 'undefined' && google?.accounts) {
     google.accounts.id.disableAutoSelect();
   }
@@ -2366,7 +2371,42 @@ window.addEventListener('load', async () => {
 
   if (GOOGLE_CLIENT_ID) {
     // ── Fluxo com Google ──
-    // Mostra splash enquanto o auto_select do GSI processa
+
+    // PRIMEIRO: tenta restaurar sessão do localStorage (não depende de cookies GSI)
+    // Resolve o problema de Android Chrome exigir novo login ao reabrir o browser.
+    const _savedUser = (() => { try { return JSON.parse(localStorage.getItem('sophia_last_user')); } catch { return null; } })();
+    if (_savedUser?.sub) {
+      currentGoogleUser = _savedUser;
+      const savedKey    = store.get('key');
+      const savedGemini = store.get('gemini_key');
+      if (savedKey?.startsWith?.('sk-') || savedGemini) {
+        // Usuário retornando com chaves salvas → vai direto para sessão
+        apiKey    = savedKey    || '';
+        geminiKey = savedGemini || '';
+        ghToken   = store.get('gh') || '';
+        userName  = store.get('name') || _savedUser.name.split(' ')[0];
+        gistId    = store.get('gist_id') || '';
+        show('splash');
+        const doInit = async () => {
+          if (ghToken && !gistId) await findOrCreateGist();
+          if (ghToken) await loadFromGist();
+          initSession();
+        };
+        doInit().catch(console.warn);
+        // Roda GSI em background apenas para renovar o credential silenciosamente
+        setTimeout(initGoogleAuth, 800);
+        return; // Pula o fluxo GSI abaixo
+      }
+      // Usuário salvo mas sem chaves → vai para setup com conta já preenchida
+      show('splash');
+      setTimeout(() => {
+        showSetupAfterLogin(_savedUser.name.split(' ')[0]);
+        setTimeout(initGoogleAuth, 800);
+      }, 500);
+      return;
+    }
+
+    // Sem usuário salvo → fluxo normal: splash + aguarda auto_select do GSI
     show('splash');
     setTimeout(() => {
       initGoogleAuth();
