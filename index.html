@@ -1220,10 +1220,15 @@ async function loadFromGist() {
       setTimeout(saveToGist, 500);
     }
 
-    // Carrega credenciais do Gist se não existirem localmente
-    if (parsed.apiKey && !apiKey) {
+    // Carrega chave do Gist SOMENTE se não houver nenhuma no localStorage
+    // (nunca sobrescreve uma chave local existente — evita restaurar chave revogada do Gist)
+    const localKey = store.get('key');
+    if (parsed.apiKey && !localKey) {
       apiKey = parsed.apiKey;
       store.set('key', apiKey);
+    } else if (localKey && !apiKey) {
+      // Garante que a variável em memória bate com o localStorage
+      apiKey = localKey;
     }
     if (parsed.nickname && !store.get('name')) {
       userName = parsed.nickname;
@@ -2431,11 +2436,20 @@ async function connectKey(type) {
     ghToken = val;
     gistId  = store.get('gist_id') || '';
     store.set('gh', ghToken);
+
+    // Salva a chave Claude que já está no campo ANTES de carregar o Gist
+    // — evita que chave velha do Gist sobrescreva a chave nova que o usuário digitou
+    const uiKey = (document.getElementById('cfg-api-key')?.value || '').trim();
+    if (uiKey.startsWith('sk-')) {
+      apiKey = uiKey;
+      store.set('key', apiKey);
+    }
+
     try {
       if (!gistId) await findOrCreateGist();
       store.set('gist_id', gistId);
       await loadFromGist();
-      // Preenche campos após sync do Gist
+      // Atualiza campo com a chave que está no store (pode ter vindo do Gist se não havia local)
       const k = store.get('key');
       if (k && document.getElementById('cfg-api-key')) document.getElementById('cfg-api-key').value = k;
       if (k) { apiKey = k; }
