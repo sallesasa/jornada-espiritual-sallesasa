@@ -1126,7 +1126,8 @@ function updateLoginStatus(state, text) {
 }
 
 function handleGoogleCredential(response) {
-  const b64 = response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  const raw = response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  const b64 = raw.padEnd(raw.length + (4 - raw.length % 4) % 4, '=');
   const payload = JSON.parse(atob(b64));
   currentGoogleUser = { sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture };
 
@@ -1282,6 +1283,9 @@ async function startJourney() {
     try {
       await findOrCreateGist();
       await loadFromGist();
+      // Empurra credenciais do setup para o Gist imediatamente
+      // (outros dispositivos poderão carregar a chave sem abrir Settings)
+      await saveToGist();
     } catch (e) {
       console.warn('Gist setup error', e);
       setSyncState('error');
@@ -1604,7 +1608,7 @@ function loadSettingsDefaults() {
   const inactivity   = cfg.inactivity   ?? 30;
   const farewell     = cfg.farewell     ?? FAREWELL_MSG;
   const assistantName = cfg.assistantName ?? 'Sophia';
-  const googleClientId = localStorage.getItem('sophia_google_client_id') || '';
+  const googleClientId = localStorage.getItem('sophia_google_client_id') || GOOGLE_CLIENT_ID || '';
   const savedNickname  = store.get('name') || userName;
   const savedApiKey    = store.get('key') || '';
   const savedGhToken   = store.get('gh') || '';
@@ -1723,7 +1727,7 @@ function saveSettings() {
   INACTIVITY_MS  = Math.round(inactivity * 1000);
   FAREWELL_MSG   = farewell;
   ASSISTANT_NAME = assistantName;
-  GOOGLE_CLIENT_ID = googleClientId;
+  GOOGLE_CLIENT_ID = googleClientId || _HARDCODED_GID;
 
   updateAssistantNameUI();
 
